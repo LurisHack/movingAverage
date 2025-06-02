@@ -22,7 +22,7 @@ const settings = {
     macdSignal: 9,
     adxLength: 14,
     adxThreshold: 20,
-    takeProfitPerc: 5.0,
+    takeProfitPerc: 2,
     stopLossPerc: 1.0,
     tradeCooldown: 2000,
     // candleLimit: 1000,
@@ -148,7 +148,7 @@ async function takeProfit(currentPrice, symbolObj) {
             ? (currentPrice - symbolObj.entryPrice) / symbolObj.entryPrice
             : (symbolObj.entryPrice - currentPrice) / symbolObj.entryPrice;
 
-        if (pnl > settings.takeProfitPerc / 100) {
+        if (pnl > settings.takeProfitPerc) {
             symbolObj.entryPrice = null;
 
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty);
@@ -281,7 +281,7 @@ function initializeSymbol(symbolObj) {
             ws.onmessage = async ({data}) => {
                 const msg = JSON.parse(data);
 
-                takeProfit(parseFloat(msg.k.c), symbolObj)
+                  takeProfit(parseFloat(msg.k.c), symbolObj).then()
 
                 if (!msg.k || !msg.k.x) return;
 

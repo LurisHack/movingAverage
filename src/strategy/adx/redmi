@@ -1,0 +1,71 @@
+✅ ADX Indicator ရဲ့ အဓိပ္ပါယ်
+ADX Value	Market Condition
+0 - 20	Weak Trend (or ranging)
+20 - 25	Emerging Trend (watching)
+25 - 50	Strong Trend
+50 - 75	Very Strong Trend
+75 - 100	Extremely Strong Trend
+
+👉 ADX က “trend direction” မပြဘူး၊ “trend strength” ပဲပြတယ်။
+
+🧠 ADX Structure (3 lines)
++DI (Positive Directional Indicator) – Buyers control
+
+−DI (Negative Directional Indicator) – Sellers control
+
+ADX – The average difference between +DI and -DI over time
+
+ADX ကို မိမိရွေးချယ်တဲ့ period (ဥပမာ 14) ပေါ်မူတည်ပြီး +DI နဲ့ −DI တွေရဲ့ divergence ကို smooth average လုပ်တာဖြစ်တယ်။
+
+🧮 Calculation Summary
+True Range (TR) = max(high - low, abs(high - prev close), abs(low - prev close))
+
++DM / -DM (Directional Movement) = directional price change
+
+Smooth these values over n-period (default 14)
+
+Calculate +DI / -DI
+
+diff
+Copy
+Edit
++DI = 100 * (Smoothed +DM / ATR)
+-DI = 100 * (Smoothed -DM / ATR)
+DX = 100 * |(+DI - -DI)| / (+DI + -DI)
+
+ADX = EMA of DX over time (default 14)
+
+📈 Signal Usage
+✅ Trending Market Confirmation
+ADX > 25 → trending market
+
+ADX rising → trend getting stronger
+
+ADX falling → trend weakening (may enter consolidation)
+
+✅ Combine with DI
++DI > -DI and ADX rising → strong uptrend
+
+-DI > +DI and ADX rising → strong downtrend
+
+ADX falling → avoid trend-following strategies
+
+✅ Strategy Use Case
+text
+Copy
+Edit
+IF (ADX > 25 AND +DI > -DI) THEN
+   BUY signal (strong uptrend)
+ELSE IF (ADX > 25 AND -DI > +DI) THEN
+   SELL signal (strong downtrend)
+ELSE
+   SIDEWAYS → skip or range strategy
+
+
+   ✅ အသုံးဝင်တဲ့အချက်များ
+   ADX > 25 ဆိုရင် trending market ဖြစ်တယ်။
+
+   +DI > -DI ဆိုရင် Uptrend
+
+   -DI > +DI ဆိုရင် Downtrend
+
