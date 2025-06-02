@@ -387,7 +387,7 @@ function cleanUpSymbol(symbolObj) {
 }
 
 
-async function startStrategy() {
+export async function init() {
 
 
     const account = await getAccount(process.env.BUY_API_KEY, process.env.BUY_API_SECRET)
@@ -451,6 +451,5 @@ async function startStrategy() {
 }
 
 
-await startStrategy();
 
 
