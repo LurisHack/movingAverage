@@ -248,11 +248,11 @@ function initializeSymbol(symbolObj) {
         //     }
         // }
 
-        if (!isTradingTime()) {
-            const minutesLeft = getMinutesUntilNextSession();
-            console.log("⏳ Next trading window starts in:", formatCountdown(minutesLeft));
-            return
-        }
+        // if (!isTradingTime()) {
+        //     const minutesLeft = getMinutesUntilNextSession();
+        //     console.log("⏳ Next trading window starts in:", formatCountdown(minutesLeft));
+        //     return
+        // }
         // Simple MA crossover logic:
         if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
             symbolObj.position = 'long';
