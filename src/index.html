@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Binance WebSocket Trading Strategy</title>
+    <style>
+        body { background: #121212; color: #eee; font-family: monospace; padding: 10px; }
+        #log { height: 400px; overflow-y: scroll; border: 1px solid #444; padding: 5px; background: #222; }
+        #indicators { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<h1>Binance WebSocket Trading Strategy</h1>
+<div id="indicators">
+    Current MA: <span id="maValue">-</span><br />
+    Current RSI: <span id="rsiValue">-</span><br />
+    Current MACD Hist: <span id="macdHistValue">-</span><br />
+    Current ADX: <span id="adxValue">-</span><br />
+    Position: <span id="position">none</span>
+</div>
+
+<pre id="log"></pre>
+
+
+</body>
+</html>
