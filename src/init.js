@@ -200,7 +200,7 @@ function initializeSymbol(symbolObj) {
                 takeProfit(parseFloat(msg.k.c), symbolObj).then();
                 if (!msg.k || !msg.k.x) return;
                 const k = msg.k;
-                const candle = {open: +k.o, high: +k.h, low: +k.l, close: +k.c, time: k.t};
+                const candle = {open: +k.o, high: +k.h, low: +k.l, close: +k.c, time: k.t, volume: +k.v};
                 symbolObj.candles.push(candle);
                 symbolObj.closes.push(candle.close);
                 symbolObj.highs.push(candle.high);
@@ -288,7 +288,7 @@ export async function init() {
     await Promise.all(account.positions.map((position) => {
         symbols.push({
             symbol: position.symbol,
-            candles: [], closes: [], highs: [], lows: [], lastSignalTime: 0,
+            candles: [], closes: [], highs: [], lows: [], volumes: [], lastSignalTime: 0,
             position: parseFloat(position.notional) < 0 ? 'short' : 'long',
             entryPrice: parseFloat(position.entryPrice),
             rawQty: Math.abs(parseFloat(position.positionAmt)),
@@ -316,6 +316,7 @@ export async function init() {
                         closes: [],
                         highs: [],
                         lows: [],
+                        volumes: [],
                         lastSignalTime: 0,
                         position: gainer.signal === 'BUY' ? 'long' : 'short',
                         entryPrice: parseFloat(gainer.price),
