@@ -82,6 +82,11 @@ async function analyzeSymbol(symbol) {
             symbol, interval: '1m', limit: 100
         });
 
+        if (!res.data || !Array.isArray(res.data)) {
+            console.log(`[ERROR] ${symbol}: Kline data is missing or malformed.`);
+            return;
+        }
+
         const closes = res.data.map(k => parseFloat(k[4]));
         const highs = res.data.map(k => parseFloat(k[2]));
         const lows = res.data.map(k => parseFloat(k[3]));
@@ -124,8 +129,11 @@ async function analyzeSymbol(symbol) {
             signal
         };
     } catch (err) {
-        console.log(`[ERROR] ${symbol}:`, err.message);
-    }
+        console.log(`[ERROR] ${symbol}:`, err.message || err);
+        if (err.response) {
+            console.log(`↪ Status: ${err.response.status}`);
+            console.log(`↪ Response:`, err.response.data);
+        }    }
 }
 
 // Main loop
