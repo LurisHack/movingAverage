@@ -160,9 +160,9 @@ export async function orderPlacing(SYMBOL, SIDE, QUANTITY) {
 
 
 
-        }catch (e) {
-            console.error(e);
-            reject(e)
+        }catch (err) {
+            console.error('[OrderManager Error]', err.response?.data || err.message);
+            reject( err.response?.data || err.message)
         }
 
 
