@@ -153,9 +153,10 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(pnl, se.takeProfitPerc)
 
 
-        if (pnl > settings.takeProfitPerc) {
+        if (pnl >= settings.takeProfitPerc) {
             symbolObj.entryPrice = null;
-            await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty);
+            await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
+                .catch(console.error);
             // runAnalysis(200).then(topVolatile => {
             //     const symbol = topVolatile[0].symbol;
             //     if (symbolObj.symbol !== symbol) {
@@ -192,13 +193,13 @@ function initializeSymbol(symbolObj) {
         if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long' && !symbolObj.hasPosition) {
             symbolObj.position = 'long';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty);
+            await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
         } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short' && !symbolObj.hasPosition) {
             symbolObj.position = 'short';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty);
+            await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
 

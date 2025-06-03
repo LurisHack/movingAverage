@@ -103,7 +103,7 @@ export async function ocoPlaceOrder(symbol, side, rawQty) {
 
             }
 
-            await orderPlacing(symbol, side, quantity).then().catch();
+            await orderPlacing(symbol, side, quantity).then().catch(console.error);
         }).catch(err => console.log(err));
 
     } catch (err) {
