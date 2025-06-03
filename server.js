@@ -1,5 +1,5 @@
 import express  from 'express';
-import path from 'path';
+// import path from 'path';
 import {init} from "./src/init.js";
 
 const app = express();
