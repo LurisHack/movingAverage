@@ -51,9 +51,7 @@ ADX falling → trend weakening (may enter consolidation)
 ADX falling → avoid trend-following strategies
 
 ✅ Strategy Use Case
-text
-Copy
-Edit
+
 IF (ADX > 25 AND +DI > -DI) THEN
    BUY signal (strong uptrend)
 ELSE IF (ADX > 25 AND -DI > +DI) THEN
