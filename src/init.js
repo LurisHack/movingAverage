@@ -334,7 +334,7 @@ export async function init() {
             position: parseFloat(position.notional) < 0 ? 'short' : 'long',
             entryPrice: parseFloat(position.entryPrice),
             rawQty: Math.abs(parseFloat(position.positionAmt)),
-            currentMA: 0, ws: null
+            currentMA: 0, ws: null, hasPosition: true
         });
     }));
 
