@@ -18,7 +18,7 @@ const settings = {
     macdSignal: 9,
     adxLength: 14,
     adxThreshold: 20,
-    takeProfitPerc: 1,
+    takeProfitPerc: 0.1,
     stopLossPerc: 1.0,
     tradeCooldown: 5000,
     candleLimit: 288,
@@ -150,6 +150,10 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(symbolObj.symbol, pnl , settings.takeProfitPerc)
         //
         // return
+
+        console.log(pnl, symbolObj.takeProfitPerc)
+
+        return
 
         if (pnl > settings.takeProfitPerc) {
             symbolObj.entryPrice = null;
