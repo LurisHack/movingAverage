@@ -44,3 +44,5 @@ export function isTradingTime() {
         }
     });
 }
+
+// console.log(isTradingTime())
