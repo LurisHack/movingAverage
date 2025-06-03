@@ -1,7 +1,7 @@
 
 
 // === Sideway Detection ===
-function detectSideway({
+export function detectSideway({
                            prices,
                            volumes,
                            thresholdPercent = 1.5,

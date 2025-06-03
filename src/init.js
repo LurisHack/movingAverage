@@ -4,6 +4,7 @@ import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
 import {runAnalysis} from "./utility/ema50Analysis.js";
 import {calculateADX, calculateRSI} from "./utility/utility.js";
+import {detectSideway} from "./utility/sidewayCheck.js";
 
 dotenv.config();
 
