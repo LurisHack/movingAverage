@@ -175,7 +175,7 @@ async function takeProfit(currentPrice, symbolObj) {
 
 function initializeSymbol(symbolObj) {
     async function loadHistoricalCandles() {
-        const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbolObj.symbol}&interval=${settings.interval}&limit=${settings.candleLimit}`);
+        const res = await fetchWithRetry(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbolObj.symbol}&interval=${settings.interval}&limit=${settings.candleLimit}`);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         if (!Array.isArray(data)) return;
@@ -349,11 +349,14 @@ export async function init() {
         });
     }));
 
-    runAnalysis(250).then(topGainer => {
+    runAnalysis(150).then(topGainer => {
         console.log(topGainer);
-        Promise.all(topGainer.map((gainer) => {
+        Promise.all(topGainer.map(async (gainer) => {
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
             if (!findSymbol) {
+
+
+                await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
 
                 const rawQty = calculateOrderQuantity(parseFloat(gainer.price))
 
@@ -374,7 +377,9 @@ export async function init() {
                     });
                 }
 
-                       orderPlacing(gainer.symbol, gainer.signal === 'BUY' ? 'BUY' : 'SELL',  rawQty)
+
+
+                      await orderPlacing(gainer.symbol, gainer.signal === 'BUY' ? 'BUY' : 'SELL',  rawQty)
                           .then(() => pushData(gainer))
                            .catch(err => {
                                console.error(`❌ Order failed: ${gainer.symbol}`, err);
@@ -383,6 +388,14 @@ export async function init() {
 
 
             }
+
+
+            // for (const gainer of topGainer) {
+            //     await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
+            //     await orderPlacing(...);
+            // }
+
+
         })).then(() => {
             symbols.map(symbolObj => initializeSymbol(symbolObj));
             invokeOnceAtNextFiveMinuteMark(() => {
@@ -437,4 +450,22 @@ export function invokeOnceAtNextFiveMinuteMark(callback) {
         clearTimeout(timeoutId);
         console.log("⛔ Canceled before execution");
     };
+}
+
+async function fetchWithRetry(url, retries = 5, delay = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            if (err.message.includes('429') && i < retries - 1) {
+                console.warn(`⚠️ Rate limited (429). Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // exponential backoff
+            } else {
+                throw err;
+            }
+        }
+    }
 }

@@ -78,8 +78,8 @@ async function getUSDTFuturesSymbols() {
 // Analyze a single symbol
 async function analyzeSymbol(symbol) {
     try {
-        const res = await axios.get('https://fapi.binance.com/fapi/v1/klines', {
-            params: { symbol, interval: '1m', limit: 100 }
+        const res = await fetchWithRetry('https://fapi.binance.com/fapi/v1/klines', {
+            symbol, interval: '1m', limit: 100
         });
 
         const closes = res.data.map(k => parseFloat(k[4]));
@@ -143,6 +143,25 @@ export async function runAnalysis(limit = 20) {
 
     return results;
 }
+
+
+async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await axios.get(url, { params });
+            return res.data;
+        } catch (err) {
+            if (err.response && err.response.status === 429 && i < retries - 1) {
+                console.warn(`⏳ 429 Too Many Requests. Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            } else {
+                throw err;
+            }
+        }
+    }
+}
+
 
 // // Example usage:
 // runAnalysis(200).then(results => {
