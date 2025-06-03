@@ -1,6 +1,6 @@
-import { ocoPlaceOrder, orderPlacing } from "./orderplacing.js";
+import {ocoPlaceOrder, orderPlacing} from "./orderplacing.js";
 import WebSocket from 'ws';
-import { getAccount } from "./utility/account.js";
+import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
 import {runAnalysis} from "./utility/ema50Analysis.js";
 
@@ -18,7 +18,7 @@ const settings = {
     macdSignal: 9,
     adxLength: 14,
     adxThreshold: 20,
-    takeProfitPerc: 0.1,
+    takeProfitPerc: 0.03,
     stopLossPerc: 1.0,
     tradeCooldown: 5000,
     candleLimit: 288,
@@ -76,7 +76,7 @@ function calculateMACD(data, fastLen, slowLen, signalLen) {
     const macdLine = data.map((_, i) => fast[i] - slow[i]);
     const signal = ema(macdLine.slice(slowLen), signalLen);
     const macdHist = macdLine.slice(slowLen + signalLen - 1).map((v, i) => v - signal[i]);
-    return { macdLine, signalLine: signal, macdHist };
+    return {macdLine, signalLine: signal, macdHist};
 }
 
 function calculateADX(highs, lows, closes, length) {
@@ -119,7 +119,7 @@ function calculateADX(highs, lows, closes, length) {
     });
 
     const adx = rma(dx.slice(length), length);
-    return { adx, plusDI, minusDI };
+    return {adx, plusDI, minusDI};
 }
 
 function calculateOrderQuantity(price) {
@@ -129,7 +129,6 @@ function calculateOrderQuantity(price) {
 }
 
 async function takeProfit(currentPrice, symbolObj) {
-
 
 
     if ((Date.now() - symbolObj.lastSignalTime) < settings.tradeCooldown) return;
@@ -175,7 +174,7 @@ function initializeSymbol(symbolObj) {
         if (!Array.isArray(data)) return;
 
         data.forEach(k => {
-            symbolObj.candles.push({ time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4] });
+            symbolObj.candles.push({time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4]});
             symbolObj.closes.push(+k[4]);
             symbolObj.highs.push(+k[2]);
             symbolObj.lows.push(+k[3]);
@@ -190,16 +189,19 @@ function initializeSymbol(symbolObj) {
         const ma = ema(symbolObj.closes, settings.maLength);
         symbolObj.currentMA = ma[ma.length - 1];
 
-        if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
+        if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long' && !symbolObj.hasPosition) {
             symbolObj.position = 'long';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty);
+            await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty);
             symbolObj.entryPrice = currentPrice;
-        } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short') {
+            symbolObj.hasPosition = true;
+        } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short' && !symbolObj.hasPosition) {
             symbolObj.position = 'short';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty);
+            await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty);
             symbolObj.entryPrice = currentPrice;
+            symbolObj.hasPosition = true;
+
         }
     }
 
@@ -212,12 +214,12 @@ function initializeSymbol(symbolObj) {
             const ws = new WebSocket(wsUrl);
             symbolObj.ws = ws;
 
-            ws.onmessage = async ({ data }) => {
+            ws.onmessage = async ({data}) => {
                 const msg = JSON.parse(data);
                 takeProfit(parseFloat(msg.k.c), symbolObj).then();
                 if (!msg.k || !msg.k.x) return;
                 const k = msg.k;
-                const candle = { open: +k.o, high: +k.h, low: +k.l, close: +k.c, time: k.t };
+                const candle = {open: +k.o, high: +k.h, low: +k.l, close: +k.c, time: k.t};
                 symbolObj.candles.push(candle);
                 symbolObj.closes.push(candle.close);
                 symbolObj.highs.push(candle.high);
@@ -258,7 +260,19 @@ function resetSymbol(symbol) {
     const existing = symbols.find(s => s.symbol === symbol);
     if (existing) cleanUpSymbol(existing);
     symbols = symbols.filter(s => s.symbol !== symbol);
-    const newSymbolObj = { symbol, candles: [], closes: [], highs: [], lows: [], lastSignalTime: 0, position: null, entryPrice: 0, rawQty: 0, currentMA: 0, ws: null };
+    const newSymbolObj = {
+        symbol,
+        candles: [],
+        closes: [],
+        highs: [],
+        lows: [],
+        lastSignalTime: 0,
+        position: null,
+        entryPrice: 0,
+        rawQty: 0,
+        currentMA: 0,
+        ws: null
+    };
     symbols.push(newSymbolObj);
     initializeSymbol(newSymbolObj);
     return newSymbolObj;
@@ -302,12 +316,33 @@ export async function init() {
         Promise.all(topGainer.map((gainer) => {
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
             if (!findSymbol) {
-                symbols.push({ symbol: gainer.symbol, candles: [], closes: [], highs: [], lows: [], lastSignalTime: 0, position: null, entryPrice: 0, rawQty: 0, currentMA: 0, ws: null });
+                symbols.push({
+                    symbol: gainer.symbol,
+                    candles: [],
+                    closes: [],
+                    highs: [],
+                    lows: [],
+                    lastSignalTime: 0,
+                    position: null,
+                    entryPrice: 0,
+                    rawQty: 0,
+                    currentMA: 0,
+                    hasPosition: false,
+                    ws: null
+                });
             }
         })).then(() => {
             symbols.map(symbolObj => initializeSymbol(symbolObj));
+            invokeOnceAtNextFiveMinuteMark(() => {
+                restartBot().catch(console.error);
+            })
         });
     }).catch(console.error);
+
+
+
+
+
 }
 
 export async function restartBot() {
@@ -328,8 +363,26 @@ export async function restartBot() {
 }
 
 
-
 // Restart every 30 minutes
-setInterval(() => {
-    restartBot().catch(console.error);
-}, 30 * 60 * 1000); // 30 minutes in milliseconds
+// setInterval(() => {
+//     restartBot().catch(console.error);
+// }, 30 * 60 * 1000); // 30 minutes in milliseconds
+
+
+export function invokeOnceAtNextFiveMinuteMark(callback) {
+    const now = new Date();
+    const delay = (15 - now.getMinutes() % 15) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+
+    console.log(`⏳ Waiting ${Math.round(delay / 1000)}s to run at next 15-minute mark...`);
+
+    const timeoutId = setTimeout(() => {
+        callback();
+        console.log("✅ Ran once at aligned 15-minute mark. Done.");
+    }, delay);
+
+    // Return cancel function in case user wants to abort
+    return () => {
+        clearTimeout(timeoutId);
+        console.log("⛔ Canceled before execution");
+    };
+}

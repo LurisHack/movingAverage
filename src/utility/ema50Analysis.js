@@ -93,7 +93,7 @@ async function analyzeSymbol(symbol) {
 
         // ATR percentage relative to current price
         const atrPercent = (atr14 / currentPrice) * 100;
-        const volatilityThresholdPercent = 0.3; // Adjust this threshold as needed
+        const volatilityThresholdPercent = 0.2; // Adjust this threshold as needed
 
         if (
             diffPercent < 1 &&            // Price close to EMA50 within 1%
