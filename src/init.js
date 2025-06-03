@@ -2,9 +2,9 @@ import {ocoPlaceOrder, orderPlacing} from "./orderplacing.js";
 import WebSocket from 'ws';
 import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
-import {runAnalysis} from "./utility/ema50Analysis.js";
 import {calculateADX, calculateRSI} from "./utility/utility.js";
 import {detectSideway} from "./utility/sidewayCheck.js";
+import {scanMarkets} from "./utility/trendDetector.js";
 
 dotenv.config();
 
@@ -69,27 +69,27 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(pnl, se.takeProfitPerc)
 
 
-        const rsi = calculateRSI(symbolObj.closes, 5);
-        const { adx } = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
+        // const rsi = calculateRSI(symbolObj.closes, 5);
+        // const { adx } = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
+        //
+        //
+        //
+        // const sidewayCheck = detectSideway({
+        //     prices: symbolObj.closes,
+        //     volumes: symbolObj.volumes,
+        //     rsi: rsi,
+        //     adx: adx
+        // });
+        //
 
 
-
-        const sidewayCheck = detectSideway({
-            prices: symbolObj.closes,
-            volumes: symbolObj.volumes,
-            rsi: rsi,
-            adx: adx
-        });
-
-
-
-        if (pnl >= (sidewayCheck.isSideway ?  0.03 : 0.2 )) {
+        if (pnl >= 0.05) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
                 .then(() => {
                     symbolObj.entryPrice = null;
                     symbolObj.hasPosition = false;
-                    // symbolObj.position = null;
+                    symbolObj.position = null;
                 })
                 .catch(console.error);
             // runAnalysis(200).then(topVolatile => {
@@ -117,75 +117,76 @@ function initializeSymbol(symbolObj) {
             symbolObj.lows.push(+k[3]);
             symbolObj.volumes.push(+k[5]); // where k[5] is volume
         });
-        await updateIndicators(symbolObj.closes.at(-1));
+        // await updateIndicators(symbolObj.closes.at(-1));
     }
 
-    async function updateIndicators(currentPrice) {
-        if (symbolObj.closes.length < settings.maLength + settings.macdSlow + settings.macdSignal) return;
-        if (!currentPrice) return;
-
-        if ((Date.now() - symbolObj.lastSignalTime) < settings.tradeCooldown) return;
-        symbolObj.lastSignalTime = Date.now();
-
-        const ma = ema(symbolObj.closes, settings.maLength);
-        symbolObj.currentMA = ma[ma.length - 1];
-
-        // Calculate indicators
-        const rsi = calculateRSI(symbolObj.closes, 5);
-        const { adx } = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
-
-
-
-        const sidewayCheck = detectSideway({
-            prices: symbolObj.closes,
-            volumes: symbolObj.volumes,
-            rsi: rsi,
-            adx: adx
-        });
-
-        if(sidewayCheck.isSideway){
-
-            if (currentPrice > symbolObj.currentMA   && !symbolObj.hasPosition) {
-                symbolObj.position = 'long';
-                symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-                await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
-                    console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
-                });
-                symbolObj.entryPrice = currentPrice;
-                symbolObj.hasPosition = true;
-            } else if (currentPrice < symbolObj.currentMA   && !symbolObj.hasPosition) {
-                symbolObj.position = 'short';
-                symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-                await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
-                    console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
-                });
-                symbolObj.entryPrice = currentPrice;
-                symbolObj.hasPosition = true;
-
-            }
-
-         return
-        }
-
-        if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
-            symbolObj.position = 'long';
-            symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
-                console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
-            });
-            symbolObj.entryPrice = currentPrice;
-            symbolObj.hasPosition = true;
-        } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short') {
-            symbolObj.position = 'short';
-            symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
-                console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
-            });
-            symbolObj.entryPrice = currentPrice;
-            symbolObj.hasPosition = true;
-
-        }
-    }
+    // async function updateIndicators(currentPrice) {
+    //
+    //     return
+    //     if (symbolObj.closes.length < settings.maLength + settings.macdSlow + settings.macdSignal) return;
+    //     if (!currentPrice) return;
+    //
+    //     if ((Date.now() - symbolObj.lastSignalTime) < settings.tradeCooldown) return;
+    //     symbolObj.lastSignalTime = Date.now();
+    //
+    //     const ma = ema(symbolObj.closes, settings.maLength);
+    //     symbolObj.currentMA = ma[ma.length - 1];
+    //
+    //     // Calculate indicators
+    //     const rsi = calculateRSI(symbolObj.closes, 5);
+    //     const {adx} = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
+    //
+    //
+    //     const sidewayCheck = detectSideway({
+    //         prices: symbolObj.closes,
+    //         volumes: symbolObj.volumes,
+    //         rsi: rsi,
+    //         adx: adx
+    //     });
+    //
+    //     if (sidewayCheck.isSideway) {
+    //
+    //         if (currentPrice > symbolObj.currentMA && !symbolObj.hasPosition) {
+    //             symbolObj.position = 'long';
+    //             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+    //             await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
+    //                 console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+    //             });
+    //             symbolObj.entryPrice = currentPrice;
+    //             symbolObj.hasPosition = true;
+    //         } else if (currentPrice < symbolObj.currentMA && !symbolObj.hasPosition) {
+    //             symbolObj.position = 'short';
+    //             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+    //             await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
+    //                 console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+    //             });
+    //             symbolObj.entryPrice = currentPrice;
+    //             symbolObj.hasPosition = true;
+    //
+    //         }
+    //
+    //         return
+    //     }
+    //
+    //     if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
+    //         symbolObj.position = 'long';
+    //         symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+    //         await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
+    //             console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+    //         });
+    //         symbolObj.entryPrice = currentPrice;
+    //         symbolObj.hasPosition = true;
+    //     } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short') {
+    //         symbolObj.position = 'short';
+    //         symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+    //         await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
+    //             console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+    //         });
+    //         symbolObj.entryPrice = currentPrice;
+    //         symbolObj.hasPosition = true;
+    //
+    //     }
+    // }
 
     async function start() {
         await loadHistoricalCandles();
@@ -206,7 +207,7 @@ function initializeSymbol(symbolObj) {
                 symbolObj.closes.push(candle.close);
                 symbolObj.highs.push(candle.high);
                 symbolObj.lows.push(candle.low);
-                symbolObj.volumes.push(+k[5]); // where k[5] is volume
+                symbolObj.volumes.push(+k.v); // where k[5] is volume
 
 
                 if (symbolObj.candles.length > settings.candleLimit) {
@@ -218,7 +219,7 @@ function initializeSymbol(symbolObj) {
 
                 }
 
-                await updateIndicators(msg.k.c);
+                // await updateIndicators(msg.k.c);
             };
 
             ws.onerror = (err) => {
@@ -252,9 +253,11 @@ function resetSymbol(symbol) {
         closes: [],
         highs: [],
         lows: [],
+        volumes: [],
         lastSignalTime: 0,
         position: null,
         entryPrice: 0,
+        hasPosition: false,
         rawQty: 0,
         currentMA: 0,
         ws: null
@@ -297,30 +300,25 @@ export async function init() {
         });
     }));
 
-    runAnalysis(150).then(topGainer => {
-        console.log(topGainer);
-        Promise.all(topGainer.signals.map(async (gainer) => {
-
-
-            const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
+   await scanMarkets(50).then(async trend => {
+        console.log(trend);
+      await  Promise.all(trend.downtrends.map(async (down) => {
+            await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
+            const rawQty = calculateOrderQuantity(parseFloat(down.price))
+            const findSymbol = symbols.find(s => s.symbol === down.symbol);
             if (!findSymbol) {
 
-
-                await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
-
-                const rawQty = calculateOrderQuantity(parseFloat(gainer.price))
-
-                const pushData = (gainer) => {
+                const pushData = () => {
                     symbols.push({
-                        symbol: gainer.symbol,
+                        symbol: down.symbol,
                         candles: [],
                         closes: [],
                         highs: [],
                         lows: [],
                         volumes: [],
                         lastSignalTime: 0,
-                        position: gainer.signal === 'BUY' ? 'long' : 'short',
-                        entryPrice: parseFloat(gainer.price),
+                        position: 'short',
+                        entryPrice: parseFloat(down.price),
                         rawQty,
                         currentMA: 0,
                         hasPosition: true,
@@ -328,36 +326,93 @@ export async function init() {
                     });
                 }
 
+                await orderPlacing(down.symbol,   'SELL', rawQty)
+                    .then(() => pushData(down))
+                    .catch(err => {
+                        console.error(`❌ Order failed: ${down.symbol}`, err);
+                    });
 
+            } else {
 
-                      await orderPlacing(gainer.symbol, gainer.signal === 'BUY' ? 'BUY' : 'SELL',  rawQty)
-                          .then(() => pushData(gainer))
-                           .catch(err => {
-                               console.error(`❌ Order failed: ${gainer.symbol}`, err);
-                           });
-
-
+                const filterPosition = symbols.filter(s => s.symbol ===  down.symbol)[0];
+                if(filterPosition && filterPosition.position === 'long') {
+                await ocoPlaceOrder(down.symbol,   'SELL', rawQty)
+                    .catch(err => {
+                        console.error(`❌ Order failed: ${down.symbol}`, err);
+                    });
+                }
 
             }
 
 
-            // for (const gainer of topGainer) {
+            // for (const down of trend) {
             //     await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
             //     await orderPlacing(...);
             // }
 
 
-        })).then(() => {
-            symbols.map(symbolObj => initializeSymbol(symbolObj));
-            invokeOnceAtNextFiveMinuteMark(() => {
-                restartBot().catch(console.error);
-            })
-        });
+        }))
+
+
+     await   Promise.all(trend.uptrends.map(async (up) => {
+            await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
+            const rawQty = calculateOrderQuantity(parseFloat(up.price))
+            const findSymbol = symbols.find(s => s.symbol === up.symbol);
+            if (!findSymbol) {
+
+                const pushData = () => {
+                    symbols.push({
+                        symbol: up.symbol,
+                        candles: [],
+                        closes: [],
+                        highs: [],
+                        lows: [],
+                        volumes: [],
+                        lastSignalTime: 0,
+                        position: 'long',
+                        entryPrice: parseFloat(up.price),
+                        rawQty,
+                        currentMA: 0,
+                        hasPosition: true,
+                        ws: null
+                    });
+                }
+
+                await orderPlacing(up.symbol, 'BUY', rawQty)
+                    .then(() => pushData(up))
+                    .catch(err => {
+                        console.error(`❌ Order failed: ${up.symbol}`, err);
+                    });
+
+            } else {
+
+                const filterPosition = symbols.filter(s => s.symbol === up.symbol)[0];
+                if(filterPosition && filterPosition.position === 'short') {
+                    await ocoPlaceOrder(up.symbol, 'BUY', rawQty)
+                        .catch(err => {
+                            console.error(`❌ Order failed: ${up.symbol}`, err);
+                        });
+                }
+
+            }
+
+
+            // for (const up of trend) {
+            //     await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
+            //     await orderPlacing(...);
+            // }
+
+
+        }))
+
+
     }).catch(console.error);
 
+    symbols.map(symbolObj => initializeSymbol(symbolObj));
 
-
-
+    invokeOnceAtNextFiveMinuteMark(() => {
+        restartBot().catch(console.error);
+    })
 
 }
 

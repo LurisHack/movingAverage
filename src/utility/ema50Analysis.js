@@ -1,177 +1,204 @@
+// sidewayScanner.js
+import fs from 'fs';
 import axios from 'axios';
 
-// EMA 50 calculator
-function calculateEMA(closes, period = 50) {
-    const k = 2 / (period + 1);
-    let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < closes.length; i++) {
-        ema = closes[i] * k + ema * (1 - k);
-    }
-    return ema;
+
+
+// sidewayDetector.js
+
+function isSideways(candles, options = {}) {
+    const {
+        rangeThreshold = 0.01,
+        adxThreshold = 20,
+        rsiRange = [45, 55],
+        bbWidthThreshold = 0.01,
+    } = options;
+
+    if (candles.length < 20) return false;
+
+    const closes = candles.map(c => c.close);
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+
+    const maxHigh = Math.max(...highs);
+    const minLow = Math.min(...lows);
+    const avgPrice = (maxHigh + minLow) / 2;
+    const priceRange = (maxHigh - minLow) / avgPrice;
+
+    const adx = calculateADX(candles);
+    const lastAdx = adx[adx.length - 1];
+
+    const rsi = calculateRSI(closes, 14);
+    const lastRsi = rsi[rsi.length - 1];
+
+    const bb = calculateBollingerBands(closes, 20, 2);
+    const lastBB = bb[bb.length - 1];
+    const bbWidth = (lastBB.upper - lastBB.lower) / lastBB.middle;
+
+    const isPriceStable = priceRange < rangeThreshold;
+    const isLowTrend = lastAdx < adxThreshold;
+    const isRsiNeutral = lastRsi > rsiRange[0] && lastRsi < rsiRange[1];
+    const isNarrowBB = bbWidth < bbWidthThreshold;
+
+    return isPriceStable && isLowTrend && isRsiNeutral && isNarrowBB;
 }
 
-// ATR 14 calculator
-function calculateATR(highs, lows, closes, period = 14) {
-    let trueRanges = [];
-    for (let i = 1; i < closes.length; i++) {
-        const highLow = highs[i] - lows[i];
-        const highClose = Math.abs(highs[i] - closes[i - 1]);
-        const lowClose = Math.abs(lows[i] - closes[i - 1]);
-        trueRanges.push(Math.max(highLow, highClose, lowClose));
+
+// indicators.js
+function calculateRSI(closes, period = 14) {
+    const rsi = [];
+    let gains = 0;
+    let losses = 0;
+
+    for (let i = 1; i <= period; i++) {
+        const change = closes[i] - closes[i - 1];
+        change >= 0 ? gains += change : losses -= change;
     }
 
-    let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < trueRanges.length; i++) {
-        atr = (trueRanges[i] + (period - 1) * atr) / period;
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+    rsi[period] = 100 - 100 / (1 + avgGain / avgLoss);
+
+    for (let i = period + 1; i < closes.length; i++) {
+        const change = closes[i] - closes[i - 1];
+        change >= 0 ? gains = change : gains = 0;
+        change < 0 ? losses = -change : losses = 0;
+
+        avgGain = (avgGain * (period - 1) + gains) / period;
+        avgLoss = (avgLoss * (period - 1) + losses) / period;
+        rsi[i] = 100 - 100 / (1 + avgGain / avgLoss);
     }
-    return atr;
+
+    return rsi;
 }
 
-// Volume Spike Detector
-function isVolumeSpike(volumes, spikeFactor = 2.0) {
-    const lastVolume = volumes[volumes.length - 1];
-    const avgVolume = volumes.slice(0, volumes.length - 1).reduce((a, b) => a + b, 0) / (volumes.length - 1);
-    return lastVolume > avgVolume * spikeFactor;
+function calculateADX(candles, period = 14) {
+    const tr = [], plusDM = [], minusDM = [], dx = [], adx = [];
+
+    for (let i = 1; i < candles.length; i++) {
+        const current = candles[i];
+        const prev = candles[i - 1];
+
+        const highDiff = current.high - prev.high;
+        const lowDiff = prev.low - current.low;
+
+        plusDM.push(highDiff > lowDiff && highDiff > 0 ? highDiff : 0);
+        minusDM.push(lowDiff > highDiff && lowDiff > 0 ? lowDiff : 0);
+
+        const range = Math.max(current.high - current.low, Math.abs(current.high - prev.close), Math.abs(current.low - prev.close));
+        tr.push(range);
+    }
+
+    let tr14 = tr.slice(0, period).reduce((a, b) => a + b, 0);
+    let plusDM14 = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
+    let minusDM14 = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
+
+    for (let i = period; i < tr.length; i++) {
+        tr14 = tr14 - tr14 / period + tr[i];
+        plusDM14 = plusDM14 - plusDM14 / period + plusDM[i];
+        minusDM14 = minusDM14 - minusDM14 / period + minusDM[i];
+
+        const plusDI = (plusDM14 / tr14) * 100;
+        const minusDI = (minusDM14 / tr14) * 100;
+        const dxi = (Math.abs(plusDI - minusDI) / (plusDI + minusDI)) * 100;
+        dx.push(dxi);
+    }
+
+    let adxVal = dx.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    adx.push(adxVal);
+
+    for (let i = period; i < dx.length; i++) {
+        adxVal = (adxVal * (period - 1) + dx[i]) / period;
+        adx.push(adxVal);
+    }
+
+    // Pad start with nulls to align length with candles
+    return Array(candles.length - adx.length).fill(null).concat(adx);
 }
 
-// Order Book Imbalance
-async function checkOrderBookImbalance(symbol, threshold = 1.5) {
-    try {
-        const res = await axios.get(`https://fapi.binance.com/fapi/v1/depth`, {
-            params: { symbol, limit: 20 }
+function calculateBollingerBands(closes, period = 20, stdDev = 2) {
+    const bands = [];
+
+    for (let i = period - 1; i < closes.length; i++) {
+        const slice = closes.slice(i - period + 1, i + 1);
+        const mean = slice.reduce((a, b) => a + b, 0) / period;
+        const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
+        const stdev = Math.sqrt(variance);
+
+        bands.push({
+            upper: mean + stdDev * stdev,
+            lower: mean - stdDev * stdev,
+            middle: mean
         });
-
-        const bids = res.data.bids.map(b => parseFloat(b[1]));
-        const asks = res.data.asks.map(a => parseFloat(a[1]));
-
-        const totalBidVolume = bids.reduce((a, b) => a + b, 0);
-        const totalAskVolume = asks.reduce((a, b) => a + b, 0);
-
-        return {
-            imbalance: totalBidVolume > totalAskVolume * threshold || totalAskVolume > totalBidVolume * threshold,
-            side: totalBidVolume > totalAskVolume * threshold ? 'BID' :
-                totalAskVolume > totalBidVolume * threshold ? 'ASK' : 'NEUTRAL'
-        };
-    } catch (err) {
-        console.log(`[OrderBook Error] ${symbol}:`, err.message);
-        return { imbalance: false, side: 'NEUTRAL' };
     }
+
+    // Pad start with nulls
+    return Array(closes.length - bands.length).fill(null).concat(bands);
 }
 
-// Get USDT perpetual pairs under 1 USDT
-async function getUSDTFuturesSymbols() {
-    const res = await axios.get('https://fapi.binance.com/fapi/v1/exchangeInfo');
-    return res.data.symbols
-        .filter(s =>
-            s.contractType === 'PERPETUAL' &&
-            s.quoteAsset === 'USDT' &&
-            s.status === 'TRADING' &&
-            parseFloat(s.filters.find(f => f.filterType === 'PRICE_FILTER').minPrice) < 1
-        )
+
+
+// Binance OHLCV Fetcher (last 50 candles, 5m timeframe)
+async function getOHLCV(symbol, interval = '5m', limit = 50) {
+    const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    const res = await axios.get(url);
+    return res.data.map(c => ({
+        open: parseFloat(c[1]),
+        high: parseFloat(c[2]),
+        low: parseFloat(c[3]),
+        close: parseFloat(c[4]),
+        volume: parseFloat(c[5]),
+    }));
+}
+
+// Get top 20 USDT trading pairs by volume
+async function getTopSymbols(limit = 200) {
+    const url = `https://fapi.binance.com/fapi/v1/ticker/24hr`;
+    const res = await axios.get(url);
+    const symbols = res.data
+        .filter(s => s.symbol.endsWith('USDT') && !s.symbol.includes('BUSD') && !s.symbol.includes('DOWN') && !s.symbol.includes('UP'))
+        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .slice(0, limit)
         .map(s => s.symbol);
+    return symbols;
 }
 
-// Fetch with retry (handles 429 errors)
-async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const res = await axios.get(url, { params });
-            return res.data;
-        } catch (err) {
-            if (err.response && err.response.status === 429 && i < retries - 1) {
-                console.warn(`⏳ 429 Too Many Requests. Retrying in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2;
-            } else {
-                throw err;
-            }
-        }
-    }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Analyze a single symbol
-async function analyzeSymbol(symbol) {
-    try {
-        const data = await fetchWithRetry('https://fapi.binance.com/fapi/v1/klines', {
-            symbol, interval: '5m', limit: 100
-        });
-
-        if (!data || !Array.isArray(data) || data.length === 0) return null;
-
-        const closes = data.map(k => parseFloat(k[4]));
-        const highs = data.map(k => parseFloat(k[2]));
-        const lows = data.map(k => parseFloat(k[3]));
-        const volumes = data.map(k => parseFloat(k[5]));
-
-        const ema50 = calculateEMA(closes);
-        const atr14 = calculateATR(highs, lows, closes);
-        const currentPrice = closes[closes.length - 1];
-        const diffPercent = Math.abs(currentPrice - ema50) / ema50 * 100;
-        const atrPercent = (atr14 / currentPrice) * 100;
-
-        const volumeSpike = isVolumeSpike(volumes);
-        const { imbalance, side } = await checkOrderBookImbalance(symbol);
-
-        let signal = 'NONE';
-        const volatilityThresholdPercent = 0.5;
-
-        if (
-            diffPercent < 1 &&
-            (volumeSpike || imbalance) &&
-            atrPercent > volatilityThresholdPercent
-        ) {
-            if (currentPrice > ema50 && (volumeSpike || (imbalance && side === 'BID'))) {
-                signal = 'BUY';
-            } else if (currentPrice < ema50 && (volumeSpike || (imbalance && side === 'ASK'))) {
-                signal = 'SELL';
-            }
-        }
-
-        return {
-            symbol,
-            price: currentPrice,
-            ema50: parseFloat(ema50.toFixed(5)),
-            diffPercent: parseFloat(diffPercent.toFixed(2)),
-            volumeSpike,
-            imbalance,
-            imbalanceSide: side,
-            atrPercent: parseFloat(atrPercent.toFixed(2)),
-            signal
-        };
-    } catch (err) {
-        console.error(`[ERROR] ${symbol}:`, err.message || err);
-        return null;
-    }
-}
-
-// Run analysis and find the closest symbol to EMA
-export async function runAnalysis(limit = 20) {
-    const symbols = await getUSDTFuturesSymbols();
+async function scanSidewaysSymbols() {
+    const topSymbols = await getTopSymbols();
     const results = [];
 
-    let closest = null;
-    let minDiff = Number.POSITIVE_INFINITY;
+    console.log(`Scanning ${topSymbols.length} top symbols for sideway conditions...\n`);
 
-    for (let i = 0; i < Math.min(limit, symbols.length); i++) {
-        await new Promise(resolve => setTimeout(resolve, 250)); // avoid rate-limit
-        const result = await analyzeSymbol(symbols[i]);
-        if (result) {
-            results.push(result);
-            if (result.diffPercent < minDiff) {
-                minDiff = result.diffPercent;
-                closest = result;
+    for (const symbol of topSymbols) {
+        try {
+            const candles = await getOHLCV(symbol);
+            const isSide = isSideways(candles);
+
+            if (isSide) {
+                console.log(`[SIDEWAY] ${symbol}`);
+                results.push(symbol);
+            } else {
+                console.log(`[TRENDING] ${symbol}`);
             }
+        } catch (err) {
+            console.error(`Error checking ${symbol}:`, err.message);
         }
+
+        // Wait 200ms before next request to avoid rate limit (5 req/sec)
+        await sleep(200);
     }
 
-    return {
-        signals: results.filter(r => r.signal !== 'NONE'),
-        closestToEMA: closest
-    };
+    // Output to file
+    fs.writeFileSync('sideways_coins.json', JSON.stringify(results, null, 2));
+    console.log(`\n✅ Found ${results.length} sideways symbols. Saved to sideways_coins.json`);
 }
 
-// Example usage
-// runAnalysis(50).then(res => {
-//     console.log("Matching Signals (5m):", res.signals);
-//     console.log("🔍 Closest to EMA:", res.closestToEMA);
-// });
+
+
+
+
+scanSidewaysSymbols();
