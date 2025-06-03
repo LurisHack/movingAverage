@@ -297,7 +297,7 @@ export async function init() {
         });
     }));
 
-    runAnalysis(150).then(topGainer => {
+    runAnalysis(100).then(topGainer => {
         console.log(topGainer);
         Promise.all(topGainer.map(async (gainer) => {
 
