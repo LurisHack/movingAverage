@@ -154,7 +154,7 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(pnl, se.takeProfitPerc)
 
 
-        if (pnl >= (isTradingTime() ? 0.1 : 0.03)) {
+        if (pnl >= (!isTradingTime() ? 0.1 : 0.03)) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
                 .then(() => {
