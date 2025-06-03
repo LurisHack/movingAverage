@@ -83,7 +83,7 @@ async function takeProfit(currentPrice, symbolObj) {
 
 
 
-        if (pnl >= (sidewayCheck.isSideway ?  0.03 : 0.1 )) {
+        if (pnl >= (sidewayCheck.isSideway ?  0.03 : 0.2 )) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
                 .then(() => {
