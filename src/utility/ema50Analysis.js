@@ -75,16 +75,16 @@ async function getUSDTFuturesSymbols() {
         .map(s => s.symbol);
 }
 
-// Analyze a single symbol
+// Analyze a single symbol (interval = 5m)
 async function analyzeSymbol(symbol) {
     try {
         const data = await fetchWithRetry('https://fapi.binance.com/fapi/v1/klines', {
-            symbol, interval: '1m', limit: 100
+            symbol, interval: '5m', limit: 100
         });
 
         if (!data || !Array.isArray(data) || data.length === 0) {
             console.log(`[ERROR] ${symbol}: Kline data is missing or malformed.`);
-            return null;  // Skip this symbol
+            return null;
         }
 
         const closes = data.map(k => parseFloat(k[4]));
@@ -154,6 +154,7 @@ export async function runAnalysis(limit = 20) {
     return results;
 }
 
+// Fetch with retry (handles 429 errors)
 async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -171,7 +172,7 @@ async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
     }
 }
 
-// Example usage:
-// runAnalysis(200).then(results => {
-//     console.log("Matching Signals:", results);
+// Example usage
+// runAnalysis(50).then(results => {
+//     console.log("Matching Signals (5m):", results);
 // });
