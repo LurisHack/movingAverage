@@ -18,7 +18,7 @@ const settings = {
     macdSignal: 9,
     adxLength: 14,
     adxThreshold: 20,
-    takeProfitPerc: 0.10,
+    takeProfitPerc: 1,
     stopLossPerc: 1.0,
     tradeCooldown: 5000,
     candleLimit: 288,
@@ -294,7 +294,7 @@ export async function init() {
         });
     }));
 
-    runAnalysis(200).then(topGainer => {
+    runAnalysis(250).then(topGainer => {
         console.log(topGainer);
         Promise.all(topGainer.map((gainer) => {
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
