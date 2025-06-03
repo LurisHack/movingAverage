@@ -151,9 +151,8 @@ async function takeProfit(currentPrice, symbolObj) {
         //
         // return
 
-        console.log(pnl, symbolObj.takeProfitPerc)
+        // console.log(pnl, se.takeProfitPerc)
 
-        return
 
         if (pnl > settings.takeProfitPerc) {
             symbolObj.entryPrice = null;
