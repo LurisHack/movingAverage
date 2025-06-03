@@ -299,7 +299,7 @@ export async function init() {
 
     runAnalysis(150).then(topGainer => {
         console.log(topGainer);
-        Promise.all(topGainer.map(async (gainer) => {
+        Promise.all(topGainer.signals.map(async (gainer) => {
 
 
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
