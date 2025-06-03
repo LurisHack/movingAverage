@@ -113,7 +113,7 @@ async function analyzeSymbol(symbol) {
         const { imbalance, side } = await checkOrderBookImbalance(symbol);
 
         let signal = 'NONE';
-        const volatilityThresholdPercent = 0.3;
+        const volatilityThresholdPercent = 0.5;
 
         if (
             diffPercent < 1 &&
