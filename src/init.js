@@ -160,7 +160,7 @@ async function takeProfit(currentPrice, symbolObj) {
                 .then(() => {
                     symbolObj.entryPrice = null;
                     symbolObj.hasPosition = false;
-                    symbolObj.position = null;
+                    // symbolObj.position = null;
                 })
                 .catch(console.error);
             // runAnalysis(200).then(topVolatile => {
