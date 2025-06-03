@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
 import {runAnalysis} from "./utility/ema50Analysis.js";
-import {isTradingTime} from "./utility/tradingTime.js";
+import {calculateADX, calculateRSI} from "./utility/utility.js";
 
 dotenv.config();
 
@@ -27,13 +27,6 @@ const settings = {
     ws: null
 }
 
-function sma(data, period) {
-    return data.map((_, i) => {
-        if (i < period - 1) return null;
-        const slice = data.slice(i - period + 1, i + 1);
-        return slice.reduce((a, b) => a + b, 0) / period;
-    });
-}
 
 function ema(data, period) {
     const k = 2 / (period + 1);
@@ -42,85 +35,6 @@ function ema(data, period) {
         emaArr.push(data[i] * k + emaArr[i - 1] * (1 - k));
     }
     return emaArr;
-}
-
-function calculateRSI(data, length) {
-    let rsi = Array(length).fill(null);
-    let gain = 0, loss = 0;
-
-    for (let i = 1; i <= length; i++) {
-        let delta = data[i] - data[i - 1];
-        if (delta >= 0) gain += delta; else loss -= delta;
-    }
-    gain /= length;
-    loss /= length;
-    rsi[length] = 100 - 100 / (1 + gain / loss);
-
-    for (let i = length + 1; i < data.length; i++) {
-        let delta = data[i] - data[i - 1];
-        if (delta >= 0) {
-            gain = (gain * (length - 1) + delta) / length;
-            loss = (loss * (length - 1)) / length;
-        } else {
-            gain = (gain * (length - 1)) / length;
-            loss = (loss * (length - 1) - delta) / length;
-        }
-        rsi[i] = 100 - 100 / (1 + gain / loss);
-    }
-
-    return rsi;
-}
-
-function calculateMACD(data, fastLen, slowLen, signalLen) {
-    const fast = ema(data, fastLen);
-    const slow = ema(data, slowLen);
-    const macdLine = data.map((_, i) => fast[i] - slow[i]);
-    const signal = ema(macdLine.slice(slowLen), signalLen);
-    const macdHist = macdLine.slice(slowLen + signalLen - 1).map((v, i) => v - signal[i]);
-    return {macdLine, signalLine: signal, macdHist};
-}
-
-function calculateADX(highs, lows, closes, length) {
-    const plusDM = [], minusDM = [], tr = [];
-    for (let i = 1; i < highs.length; i++) {
-        const up = highs[i] - highs[i - 1];
-        const down = lows[i - 1] - lows[i];
-
-        plusDM.push(up > down && up > 0 ? up : 0);
-        minusDM.push(down > up && down > 0 ? down : 0);
-
-        const trVal = Math.max(
-            highs[i] - lows[i],
-            Math.abs(highs[i] - closes[i - 1]),
-            Math.abs(lows[i] - closes[i - 1])
-        );
-        tr.push(trVal);
-    }
-
-    function rma(values, length) {
-        const rmaArr = [];
-        let sum = values.slice(0, length).reduce((a, b) => a + b, 0);
-        rmaArr[length - 1] = sum / length;
-        for (let i = length; i < values.length; i++) {
-            rmaArr[i] = (rmaArr[i - 1] * (length - 1) + values[i]) / length;
-        }
-        return rmaArr;
-    }
-
-    const trRMA = rma(tr, length);
-    const plusRMA = rma(plusDM, length);
-    const minusRMA = rma(minusDM, length);
-
-    const plusDI = plusRMA.map((v, i) => (trRMA[i] ? 100 * v / trRMA[i] : 0));
-    const minusDI = minusRMA.map((v, i) => (trRMA[i] ? 100 * v / trRMA[i] : 0));
-
-    const dx = plusDI.map((v, i) => {
-        const total = v + minusDI[i];
-        return total ? 100 * Math.abs(v - minusDI[i]) / total : 0;
-    });
-
-    const adx = rma(dx.slice(length), length);
-    return {adx, plusDI, minusDI};
 }
 
 function calculateOrderQuantity(price) {
@@ -154,7 +68,21 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(pnl, se.takeProfitPerc)
 
 
-        if (pnl >= (isTradingTime() ? 0.2 : 0.03)) {
+        const rsi = calculateRSI(symbolObj.closes, 5);
+        const { adx } = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
+
+
+
+        const sidewayCheck = detectSideway({
+            prices: symbolObj.closes,
+            volumes: symbolObj.volumes,
+            rsi: rsi,
+            adx: adx
+        });
+
+
+
+        if (pnl >= (sidewayCheck.isSideway ?  0.03 : 0.2 )) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
                 .then(() => {
@@ -186,6 +114,7 @@ function initializeSymbol(symbolObj) {
             symbolObj.closes.push(+k[4]);
             symbolObj.highs.push(+k[2]);
             symbolObj.lows.push(+k[3]);
+            symbolObj.volumes.push(+k[5]); // where k[5] is volume
         });
         await updateIndicators(symbolObj.closes.at(-1));
     }
@@ -200,7 +129,20 @@ function initializeSymbol(symbolObj) {
         const ma = ema(symbolObj.closes, settings.maLength);
         symbolObj.currentMA = ma[ma.length - 1];
 
-        if(!isTradingTime()){
+        // Calculate indicators
+        const rsi = calculateRSI(symbolObj.closes, 5);
+        const { adx } = calculateADX(symbolObj.highs, symbolObj.lows, symbolObj.closes, 5);
+
+
+
+        const sidewayCheck = detectSideway({
+            prices: symbolObj.closes,
+            volumes: symbolObj.volumes,
+            rsi: rsi,
+            adx: adx
+        });
+
+        if(sidewayCheck.isSideway){
 
             if (currentPrice > symbolObj.currentMA   && !symbolObj.hasPosition) {
                 symbolObj.position = 'long';
@@ -263,12 +205,16 @@ function initializeSymbol(symbolObj) {
                 symbolObj.closes.push(candle.close);
                 symbolObj.highs.push(candle.high);
                 symbolObj.lows.push(candle.low);
+                symbolObj.volumes.push(+k[5]); // where k[5] is volume
+
 
                 if (symbolObj.candles.length > settings.candleLimit) {
                     symbolObj.candles.shift();
                     symbolObj.closes.shift();
                     symbolObj.highs.shift();
                     symbolObj.lows.shift();
+                    symbolObj.volumes.shift(); // where k[5] is volume
+
                 }
 
                 await updateIndicators(msg.k.c);
