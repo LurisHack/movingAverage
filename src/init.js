@@ -193,6 +193,9 @@ function initializeSymbol(symbolObj) {
         if (symbolObj.closes.length < settings.maLength + settings.macdSlow + settings.macdSignal) return;
         if (!currentPrice) return;
 
+        if ((Date.now() - symbolObj.lastSignalTime) < settings.tradeCooldown) return;
+        symbolObj.lastSignalTime = Date.now();
+
         const ma = ema(symbolObj.closes, settings.maLength);
         symbolObj.currentMA = ma[ma.length - 1];
 
@@ -201,13 +204,17 @@ function initializeSymbol(symbolObj) {
             if (currentPrice > symbolObj.currentMA   && !symbolObj.hasPosition) {
                 symbolObj.position = 'long';
                 symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-                await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
+                await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
+                    console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+                });
                 symbolObj.entryPrice = currentPrice;
                 symbolObj.hasPosition = true;
             } else if (currentPrice < symbolObj.currentMA   && !symbolObj.hasPosition) {
                 symbolObj.position = 'short';
                 symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-                await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
+                await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
+                    console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+                });
                 symbolObj.entryPrice = currentPrice;
                 symbolObj.hasPosition = true;
 
@@ -219,13 +226,17 @@ function initializeSymbol(symbolObj) {
         if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
             symbolObj.position = 'long';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
+            await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(err => {
+                console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+            });
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
         } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short') {
             symbolObj.position = 'short';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
+            await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(err => {
+                console.error(`❌ Order failed: ${symbolObj.symbol}`, err);
+            });
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
 
@@ -343,20 +354,34 @@ export async function init() {
         Promise.all(topGainer.map((gainer) => {
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
             if (!findSymbol) {
-                symbols.push({
-                    symbol: gainer.symbol,
-                    candles: [],
-                    closes: [],
-                    highs: [],
-                    lows: [],
-                    lastSignalTime: 0,
-                    position: null,
-                    entryPrice: 0,
-                    rawQty: 0,
-                    currentMA: 0,
-                    hasPosition: false,
-                    ws: null
-                });
+
+                const rawQty = calculateOrderQuantity(parseFloat(gainer.price))
+
+                const pushData = (gainer) => {
+                    symbols.push({
+                        symbol: gainer.symbol,
+                        candles: [],
+                        closes: [],
+                        highs: [],
+                        lows: [],
+                        lastSignalTime: 0,
+                        position: gainer.signal === 'BUY' ? 'long' : 'short',
+                        entryPrice: parseFloat(gainer.price),
+                        rawQty,
+                        currentMA: 0,
+                        hasPosition: true,
+                        ws: null
+                    });
+                }
+
+                       orderPlacing(gainer.symbol, gainer.signal === 'BUY' ? 'BUY' : 'SELL',  rawQty)
+                          .then(() => pushData(gainer))
+                           .catch(err => {
+                               console.error(`❌ Order failed: ${gainer.symbol}`, err);
+                           });
+
+
+
             }
         })).then(() => {
             symbols.map(symbolObj => initializeSymbol(symbolObj));

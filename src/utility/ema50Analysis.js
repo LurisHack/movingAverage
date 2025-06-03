@@ -31,30 +31,34 @@ function calculateATR(highs, lows, closes, period = 14) {
     return atr;
 }
 
-// Volume Spike Detector (last volume vs average of previous volumes)
+// Volume Spike Detector
 function isVolumeSpike(volumes, spikeFactor = 2.0) {
     const lastVolume = volumes[volumes.length - 1];
     const avgVolume = volumes.slice(0, volumes.length - 1).reduce((a, b) => a + b, 0) / (volumes.length - 1);
     return lastVolume > avgVolume * spikeFactor;
 }
 
-// Order Book Imbalance Filter
+// Order Book Imbalance
 async function checkOrderBookImbalance(symbol, threshold = 1.5) {
     try {
         const res = await axios.get(`https://fapi.binance.com/fapi/v1/depth`, {
             params: { symbol, limit: 20 }
         });
 
-        const bids = res.data.bids.map(b => parseFloat(b[1])); // volume bids
-        const asks = res.data.asks.map(a => parseFloat(a[1])); // volume asks
+        const bids = res.data.bids.map(b => parseFloat(b[1]));
+        const asks = res.data.asks.map(a => parseFloat(a[1]));
 
         const totalBidVolume = bids.reduce((a, b) => a + b, 0);
         const totalAskVolume = asks.reduce((a, b) => a + b, 0);
 
-        return totalBidVolume > totalAskVolume * threshold || totalAskVolume > totalBidVolume * threshold;
+        return {
+            imbalance: totalBidVolume > totalAskVolume * threshold || totalAskVolume > totalBidVolume * threshold,
+            side: totalBidVolume > totalAskVolume * threshold ? 'BID' :
+                totalAskVolume > totalBidVolume * threshold ? 'ASK' : 'NEUTRAL'
+        };
     } catch (err) {
         console.log(`[OrderBook Error] ${symbol}:`, err.message);
-        return false;
+        return { imbalance: false, side: 'NEUTRAL' };
     }
 }
 
@@ -87,28 +91,38 @@ async function analyzeSymbol(symbol) {
         const atr14 = calculateATR(highs, lows, closes, 14);
         const currentPrice = closes[closes.length - 1];
         const diffPercent = Math.abs(currentPrice - ema50) / ema50 * 100;
+        const atrPercent = (atr14 / currentPrice) * 100;
 
         const volumeSpike = isVolumeSpike(volumes);
-        const imbalance = await checkOrderBookImbalance(symbol);
+        const { imbalance, side } = await checkOrderBookImbalance(symbol);
 
-        // ATR percentage relative to current price
-        const atrPercent = (atr14 / currentPrice) * 100;
-        const volatilityThresholdPercent = 0.25; // Adjust this threshold as needed
+        const volatilityThresholdPercent = 0.3;
+
+        let signal = 'NONE';
 
         if (
-            diffPercent < 1 &&            // Price close to EMA50 within 1%
-            (volumeSpike || imbalance) && // Volume spike or order book imbalance
-            atrPercent > volatilityThresholdPercent // Volatility threshold
+            diffPercent < 1 &&
+            (volumeSpike || imbalance) &&
+            atrPercent > volatilityThresholdPercent
         ) {
-            return {
-                symbol,
-                price: currentPrice,
-                diff: diffPercent.toFixed(2),
-                volumeSpike,
-                imbalance,
-                atrPercent: atrPercent.toFixed(2)
-            };
+            if (currentPrice > ema50 && (volumeSpike || (imbalance && side === 'BID'))) {
+                signal = 'BUY';
+            } else if (currentPrice < ema50 && (volumeSpike || (imbalance && side === 'ASK'))) {
+                signal = 'SELL';
+            }
         }
+
+        return {
+            symbol,
+            price: currentPrice,
+            ema50: ema50.toFixed(5),
+            diffPercent: diffPercent.toFixed(2),
+            volumeSpike,
+            imbalance,
+            imbalanceSide: side,
+            atrPercent: atrPercent.toFixed(2),
+            signal
+        };
     } catch (err) {
         console.log(`[ERROR] ${symbol}:`, err.message);
     }
@@ -120,15 +134,17 @@ export async function runAnalysis(limit = 20) {
     const results = [];
 
     for (let i = 0; i < Math.min(limit, symbols.length); i++) {
-        await new Promise(resolve => setTimeout(resolve, 250)); // rate-limit 250ms delay
+        await new Promise(resolve => setTimeout(resolve, 250)); // rate-limit
         const result = await analyzeSymbol(symbols[i]);
-        if (result) results.push(result);
+        if (result && result.signal !== 'NONE') {
+            results.push(result);
+        }
     }
 
     return results;
 }
 
 // // Example usage:
-// runAnalysis(250).then(results => {
-//     console.log("Matching Symbols:", results);
+// runAnalysis(200).then(results => {
+//     console.log("Matching Signals:", results);
 // });
