@@ -1,11 +1,8 @@
 import { ocoPlaceOrder, orderPlacing } from "./orderplacing.js";
 import WebSocket from 'ws';
-import { findMostVolatile } from "./utility/mostVolatile.js";
 import { getAccount } from "./utility/account.js";
 import dotenv from "dotenv";
-import { isTradingTime } from "./utility/tradingTime.js";
-import { formatCountdown, getMinutesUntilNextSession } from "./utility/nextTradingCountdown.js";
-import { getTopFuturesGainers } from "./utility/topGainer.js";
+import {runAnalysis} from "./utility/ema50Analysis.js";
 
 dotenv.config();
 
@@ -21,13 +18,13 @@ const settings = {
     macdSignal: 9,
     adxLength: 14,
     adxThreshold: 20,
-    takeProfitPerc: 2,
+    takeProfitPerc: 0.10,
     stopLossPerc: 1.0,
-    tradeCooldown: 2000,
-    candleLimit: 96,
-    interval: '15m',
+    tradeCooldown: 5000,
+    candleLimit: 288,
+    interval: '5m',
     ws: null
-};
+}
 
 function sma(data, period) {
     return data.map((_, i) => {
@@ -132,23 +129,37 @@ function calculateOrderQuantity(price) {
 }
 
 async function takeProfit(currentPrice, symbolObj) {
+
+
+
     if ((Date.now() - symbolObj.lastSignalTime) < settings.tradeCooldown) return;
     symbolObj.lastSignalTime = Date.now();
 
+    const entry = symbolObj.entryPrice;
+    const current = currentPrice;
+    const amt = Math.abs(symbolObj.rawQty); // always use absolute to avoid -ve logic issues
+
+
+    // console.log(entry, current, amt)
+
     if (symbolObj.entryPrice) {
         const pnl = (symbolObj.position === 'long')
-            ? (currentPrice - symbolObj.entryPrice) / symbolObj.entryPrice
-            : (symbolObj.entryPrice - currentPrice) / symbolObj.entryPrice;
+            ? (current - entry) * amt
+            : (entry - current) * amt;
+
+        // console.log(symbolObj.symbol, pnl , settings.takeProfitPerc)
+        //
+        // return
 
         if (pnl > settings.takeProfitPerc) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty);
-            getTopFuturesGainers(1).then(topVolatile => {
-                const symbol = topVolatile[0].symbol;
-                if (symbolObj.symbol !== symbol) {
-                    resetSymbol(symbol);
-                }
-            });
+            // runAnalysis(200).then(topVolatile => {
+            //     const symbol = topVolatile[0].symbol;
+            //     if (symbolObj.symbol !== symbol) {
+            //         resetSymbol(symbol);
+            //     }
+            // });
         }
     }
 }
@@ -283,7 +294,8 @@ export async function init() {
         });
     }));
 
-    getTopFuturesGainers(3).then(topGainer => {
+    runAnalysis(200).then(topGainer => {
+        console.log(topGainer);
         Promise.all(topGainer.map((gainer) => {
             const findSymbol = symbols.find(s => s.symbol === gainer.symbol);
             if (!findSymbol) {
@@ -294,3 +306,27 @@ export async function init() {
         });
     }).catch(console.error);
 }
+
+export async function restartBot() {
+    console.log("♻️ Restarting bot...");
+
+    // Clean up each symbol
+    symbols.forEach(cleanUpSymbol);
+    symbols = [];
+
+    // Force garbage collection if available (Node must be run with `--expose-gc`)
+    if (global.gc) {
+        global.gc();
+        console.log("🧹 Garbage collected");
+    }
+
+    // Re-run the initialization
+    await init();
+}
+
+
+
+// Restart every 30 minutes
+setInterval(() => {
+    restartBot().catch(console.error);
+}, 30 * 60 * 1000); // 30 minutes in milliseconds

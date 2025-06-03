@@ -18,4 +18,4 @@ app.listen(PORT, () => {
 });
 
 
-// await init();
+await init();
