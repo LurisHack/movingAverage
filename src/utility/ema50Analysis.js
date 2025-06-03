@@ -78,19 +78,19 @@ async function getUSDTFuturesSymbols() {
 // Analyze a single symbol
 async function analyzeSymbol(symbol) {
     try {
-        const res = await fetchWithRetry('https://fapi.binance.com/fapi/v1/klines', {
+        const data = await fetchWithRetry('https://fapi.binance.com/fapi/v1/klines', {
             symbol, interval: '1m', limit: 100
         });
 
-        if (!res.data || !Array.isArray(res.data)) {
+        if (!data || !Array.isArray(data) || data.length === 0) {
             console.log(`[ERROR] ${symbol}: Kline data is missing or malformed.`);
-            return;
+            return null;  // Skip this symbol
         }
 
-        const closes = res.data.map(k => parseFloat(k[4]));
-        const highs = res.data.map(k => parseFloat(k[2]));
-        const lows = res.data.map(k => parseFloat(k[3]));
-        const volumes = res.data.map(k => parseFloat(k[5]));
+        const closes = data.map(k => parseFloat(k[4]));
+        const highs = data.map(k => parseFloat(k[2]));
+        const lows = data.map(k => parseFloat(k[3]));
+        const volumes = data.map(k => parseFloat(k[5]));
 
         const ema50 = calculateEMA(closes, 50);
         const atr14 = calculateATR(highs, lows, closes, 14);
@@ -133,7 +133,9 @@ async function analyzeSymbol(symbol) {
         if (err.response) {
             console.log(`↪ Status: ${err.response.status}`);
             console.log(`↪ Response:`, err.response.data);
-        }    }
+        }
+        return null;
+    }
 }
 
 // Main loop
@@ -152,7 +154,6 @@ export async function runAnalysis(limit = 20) {
     return results;
 }
 
-
 async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -170,8 +171,7 @@ async function fetchWithRetry(url, params, retries = 3, delay = 1000) {
     }
 }
 
-
-// // Example usage:
-// runAnalysis(200).then(results => {
-//     console.log("Matching Signals:", results);
-// });
+// Example usage:
+runAnalysis(200).then(results => {
+    console.log("Matching Signals:", results);
+});
