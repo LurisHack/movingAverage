@@ -176,7 +176,8 @@ async function takeProfit(currentPrice, symbolObj) {
 function initializeSymbol(symbolObj) {
     async function loadHistoricalCandles() {
         const res = await fetchWithRetry(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbolObj.symbol}&interval=${settings.interval}&limit=${settings.candleLimit}`);
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        // if (!Array.isArray(res)) return;
+
         const data = await res.json();
         if (!Array.isArray(data)) return;
 
