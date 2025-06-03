@@ -3,6 +3,7 @@ import WebSocket from 'ws';
 import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
 import {runAnalysis} from "./utility/ema50Analysis.js";
+import {isTradingTime} from "./utility/tradingTime.js";
 
 dotenv.config();
 
@@ -153,9 +154,14 @@ async function takeProfit(currentPrice, symbolObj) {
         // console.log(pnl, se.takeProfitPerc)
 
 
-        if (pnl >= settings.takeProfitPerc) {
+        if (pnl >= (isTradingTime() ? 0.1 : 0.03)) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
+                .then(() => {
+                    symbolObj.entryPrice = null;
+                    symbolObj.hasPosition = false;
+                    symbolObj.position = null;
+                })
                 .catch(console.error);
             // runAnalysis(200).then(topVolatile => {
             //     const symbol = topVolatile[0].symbol;
@@ -190,16 +196,36 @@ function initializeSymbol(symbolObj) {
         const ma = ema(symbolObj.closes, settings.maLength);
         symbolObj.currentMA = ma[ma.length - 1];
 
-        if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long' && !symbolObj.hasPosition) {
+        if(!isTradingTime()){
+
+            if (currentPrice > symbolObj.currentMA   && !symbolObj.hasPosition) {
+                symbolObj.position = 'long';
+                symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+                await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
+                symbolObj.entryPrice = currentPrice;
+                symbolObj.hasPosition = true;
+            } else if (currentPrice < symbolObj.currentMA   && !symbolObj.hasPosition) {
+                symbolObj.position = 'short';
+                symbolObj.rawQty = calculateOrderQuantity(currentPrice);
+                await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
+                symbolObj.entryPrice = currentPrice;
+                symbolObj.hasPosition = true;
+
+            }
+
+         return
+        }
+
+        if (currentPrice > symbolObj.currentMA && symbolObj.position !== 'long') {
             symbolObj.position = 'long';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await orderPlacing(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
+            await ocoPlaceOrder(symbolObj.symbol, 'BUY', symbolObj.rawQty).catch(console.error);
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
-        } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short' && !symbolObj.hasPosition) {
+        } else if (currentPrice < symbolObj.currentMA && symbolObj.position !== 'short') {
             symbolObj.position = 'short';
             symbolObj.rawQty = calculateOrderQuantity(currentPrice);
-            await orderPlacing(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
+            await ocoPlaceOrder(symbolObj.symbol, 'SELL', symbolObj.rawQty).catch(console.error);
             symbolObj.entryPrice = currentPrice;
             symbolObj.hasPosition = true;
 
