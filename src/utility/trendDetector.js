@@ -242,10 +242,10 @@ export async function scanMarkets(limit, interval = '15m') {
 
 
 
-const result = await scanMarkets(100);
+// const result = await scanMarkets(100);
 // console.log("📉 Downtrend Coins (sorted by % drop):");
 // result.downtrends.forEach(d => {
 //     console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`);
 // });
 
-console.log(result);
+// console.log(result);
