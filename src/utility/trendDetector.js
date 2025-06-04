@@ -212,22 +212,19 @@ export async function scanMarkets(limit) {
 
     for (const symbol of symbols) {
         try {
-            const candles = await getOHLCV(symbol);
+            const candles = await getOHLCV(symbol, '5m', 51); // Need 51 to calculate change
             const close = candles[candles.length - 1].close;
+            const prevClose = candles[candles.length - 2].close;
 
             if (close > 1) continue;
 
             if (isDowntrend(candles)) {
-                // console.log(`[DOWNTREND] ${symbol} @ ${close}`);
-                downtrends.push({ symbol, price: close });
+                const percentDrop = ((prevClose - close) / prevClose) * 100;
+                downtrends.push({ symbol, price: close, percentDrop });
             } else if (isUptrend(candles)) {
-                // console.log(`[UPTREND]   ${symbol} @ ${close}`);
                 uptrends.push({ symbol, price: close });
             } else if (isSideways(candles)) {
-                // console.log(`[SIDEWAY]   ${symbol} @ ${close}`);
                 sideways.push({ symbol, price: close });
-            } else {
-                // console.log(`[UNKNOWN]   ${symbol} @ ${close}`);
             }
         } catch (err) {
             console.error(`⚠️ Error on ${symbol}: ${err.message}`);
@@ -236,8 +233,18 @@ export async function scanMarkets(limit) {
         await sleep(200);
     }
 
+    // Sort by biggest drop first
+    downtrends.sort((a, b) => b.percentDrop - a.percentDrop);
+
     return { uptrends, downtrends, sideways };
 }
 
-// const result = await scanMarkets();
-// console.log("📉 Downtrend Coins:", result);
+
+
+// const result = await scanMarkets(50);
+// console.log("📉 Downtrend Coins (sorted by % drop):");
+// result.downtrends.forEach(d => {
+//     console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`);
+// });
+
+// console.log(result);

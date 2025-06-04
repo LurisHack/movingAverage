@@ -2,8 +2,6 @@ import {ocoPlaceOrder, orderPlacing} from "./orderplacing.js";
 import WebSocket from 'ws';
 import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
-import {calculateADX, calculateRSI} from "./utility/utility.js";
-import {detectSideway} from "./utility/sidewayCheck.js";
 import {scanMarkets} from "./utility/trendDetector.js";
 
 dotenv.config();
@@ -300,7 +298,7 @@ export async function init() {
         });
     }));
 
-   await scanMarkets(50).then(async trend => {
+   await scanMarkets(70).then(async trend => {
         console.log(trend);
       await  Promise.all(trend.downtrends.map(async (down) => {
             await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
