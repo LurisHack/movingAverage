@@ -1,4 +1,4 @@
-import {ocoPlaceOrder, orderPlacing} from "./orderplacing.js";
+import {  orderPlacing} from "./orderplacing.js";
 import WebSocket from 'ws';
 import {getAccount} from "./utility/account.js";
 import dotenv from "dotenv";
@@ -298,61 +298,60 @@ export async function init() {
         });
     }));
 
-   await scanMarkets(70).then(async trend => {
+   await scanMarkets(100).then(async trend => {
         console.log(trend);
-      await  Promise.all(trend.downtrends.map(async (down) => {
-            await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
-            const rawQty = calculateOrderQuantity(parseFloat(down.price))
-            const findSymbol = symbols.find(s => s.symbol === down.symbol);
-            if (!findSymbol) {
-
-                const pushData = () => {
-                    symbols.push({
-                        symbol: down.symbol,
-                        candles: [],
-                        closes: [],
-                        highs: [],
-                        lows: [],
-                        volumes: [],
-                        lastSignalTime: 0,
-                        position: 'short',
-                        entryPrice: parseFloat(down.price),
-                        rawQty,
-                        currentMA: 0,
-                        hasPosition: true,
-                        ws: null
-                    });
-                }
-
-                await orderPlacing(down.symbol,   'SELL', rawQty)
-                    .then(() => pushData(down))
-                    .catch(err => {
-                        console.error(`❌ Order failed: ${down.symbol}`, err);
-                    });
-
-            } else {
-
-                const filterPosition = symbols.filter(s => s.symbol ===  down.symbol)[0];
-                if(filterPosition && filterPosition.position === 'long') {
-                await ocoPlaceOrder(down.symbol,   'SELL', rawQty)
-                    .catch(err => {
-                        console.error(`❌ Order failed: ${down.symbol}`, err);
-                    });
-                }
-
-            }
 
 
-            // for (const down of trend) {
-            //     await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
-            //     await orderPlacing(...);
-            // }
+
+      // await  Promise.all(trend.downtrends.map(async (down) => {
+      //       await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
+      //       const rawQty = calculateOrderQuantity(parseFloat(down.price))
+      //       const findSymbol = symbols.find(s => s.symbol === down.symbol);
+      //       if (!findSymbol) {
+      //
+      //           const pushData = () => {
+      //               symbols.push({
+      //                   symbol: down.symbol,
+      //                   candles: [],
+      //                   closes: [],
+      //                   highs: [],
+      //                   lows: [],
+      //                   volumes: [],
+      //                   lastSignalTime: 0,
+      //                   position: 'short',
+      //                   entryPrice: parseFloat(down.price),
+      //                   rawQty,
+      //                   currentMA: 0,
+      //                   hasPosition: true,
+      //                   ws: null
+      //               });
+      //           }
+      //
+      //           await orderPlacing(down.symbol,   'SELL', rawQty)
+      //               .then(() => pushData(down))
+      //               .catch(err => {
+      //                   console.error(`❌ Order failed: ${down.symbol}`, err);
+      //               });
+      //
+      //       } else {
+      //
+      //           const filterPosition = symbols.filter(s => s.symbol ===  down.symbol)[0];
+      //           if(filterPosition && filterPosition.position === 'long') {
+      //           await ocoPlaceOrder(down.symbol,   'SELL', rawQty)
+      //               .catch(err => {
+      //                   console.error(`❌ Order failed: ${down.symbol}`, err);
+      //               });
+      //           }
+      //
+      //       }
+      //
+      //
+      //   }))
 
 
-        }))
+     await   Promise.all(trend.uptrends.map(async (up, index) => {
 
-
-     await   Promise.all(trend.uptrends.map(async (up) => {
+         if(index > 0) return
             await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
             const rawQty = calculateOrderQuantity(parseFloat(up.price))
             const findSymbol = symbols.find(s => s.symbol === up.symbol);
@@ -367,7 +366,7 @@ export async function init() {
                         lows: [],
                         volumes: [],
                         lastSignalTime: 0,
-                        position: 'long',
+                        position: 'short',
                         entryPrice: parseFloat(up.price),
                         rawQty,
                         currentMA: 0,
@@ -376,7 +375,7 @@ export async function init() {
                     });
                 }
 
-                await orderPlacing(up.symbol, 'BUY', rawQty)
+                await orderPlacing(up.symbol, 'SELL', rawQty)
                     .then(() => pushData(up))
                     .catch(err => {
                         console.error(`❌ Order failed: ${up.symbol}`, err);
@@ -384,13 +383,13 @@ export async function init() {
 
             } else {
 
-                const filterPosition = symbols.filter(s => s.symbol === up.symbol)[0];
-                if(filterPosition && filterPosition.position === 'short') {
-                    await ocoPlaceOrder(up.symbol, 'BUY', rawQty)
-                        .catch(err => {
-                            console.error(`❌ Order failed: ${up.symbol}`, err);
-                        });
-                }
+                // const filterPosition = symbols.filter(s => s.symbol === up.symbol)[0];
+                // if(filterPosition && filterPosition.position === 'short') {
+                //     await ocoPlaceOrder(up.symbol, 'BUY', rawQty)
+                //         .catch(err => {
+                //             console.error(`❌ Order failed: ${up.symbol}`, err);
+                //         });
+                // }
 
             }
 

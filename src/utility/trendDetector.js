@@ -235,10 +235,10 @@ export async function scanMarkets(limit) {
     }
 
 // Sort by biggest drop first
-    downtrends.sort((a, b) => a.percentDrop - b.percentDrop);
+    downtrends.sort((a, b) => b.percentDrop - a.percentDrop);
 
 // Sort by biggest gain first
-    uptrends.sort((a, b) => a.percentGain - b.percentGain);
+    uptrends.sort((a, b) => b.percentGain - a.percentGain);
 
     return { uptrends, downtrends, sideways };
 
@@ -246,10 +246,10 @@ export async function scanMarkets(limit) {
 
 
 
-const result = await scanMarkets(50);
+// const result = await scanMarkets(100);
 // console.log("📉 Downtrend Coins (sorted by % drop):");
 // result.downtrends.forEach(d => {
 //     console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`);
 // });
 
-console.log(result);
+// console.log(result);
