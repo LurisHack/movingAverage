@@ -222,7 +222,8 @@ export async function scanMarkets(limit) {
                 const percentDrop = ((prevClose - close) / prevClose) * 100;
                 downtrends.push({ symbol, price: close, percentDrop });
             } else if (isUptrend(candles)) {
-                uptrends.push({ symbol, price: close });
+                const percentGain = ((close - prevClose) / prevClose) * 100;
+                uptrends.push({ symbol, price: close, percentGain });
             } else if (isSideways(candles)) {
                 sideways.push({ symbol, price: close });
             }
@@ -233,18 +234,22 @@ export async function scanMarkets(limit) {
         await sleep(200);
     }
 
-    // Sort by biggest drop first
-    downtrends.sort((a, b) => b.percentDrop - a.percentDrop);
+// Sort by biggest drop first
+    downtrends.sort((a, b) => a.percentDrop - b.percentDrop);
+
+// Sort by biggest gain first
+    uptrends.sort((a, b) => a.percentGain - b.percentGain);
 
     return { uptrends, downtrends, sideways };
+
 }
 
 
 
-// const result = await scanMarkets(50);
+const result = await scanMarkets(50);
 // console.log("📉 Downtrend Coins (sorted by % drop):");
 // result.downtrends.forEach(d => {
 //     console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`);
 // });
 
-// console.log(result);
+console.log(result);
