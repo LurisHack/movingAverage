@@ -298,7 +298,7 @@ export async function init() {
         });
     }));
 
-   await scanMarkets(250, '6h').then(async trend => {
+   await scanMarkets(250, '12h').then(async trend => {
         console.log(trend);
 
 
@@ -349,9 +349,16 @@ export async function init() {
       //   }))
 
 
+       let filterSymbolCount = 0
+
+
      await   Promise.all(trend.uptrends.map(async (up, index) => {
 
-         if(index > 0) return
+         filterSymbolCount += symbols.filter(s => s.symbol === up.symbol).length;
+
+         if(index > filterSymbolCount) return
+
+
             await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
             const rawQty = calculateOrderQuantity(parseFloat(up.price))
             const findSymbol = symbols.find(s => s.symbol === up.symbol);
