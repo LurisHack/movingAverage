@@ -298,7 +298,7 @@ export async function init() {
         });
     }));
 
-   await scanMarkets(200).then(async trend => {
+   await scanMarkets(200, '6h').then(async trend => {
         console.log(trend);
 
 
