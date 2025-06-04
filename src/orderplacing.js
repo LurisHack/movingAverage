@@ -81,38 +81,38 @@ async function getAccountForStrategy(symbol) {
 }
 
 
-export async function ocoPlaceOrder(symbol, side, rawQty) {
-
-
-    try {
-
-        getAccountForStrategy(symbol.toUpperCase()).then(async (account) => {
-
-            const {stepSize} = await getSymbolInfo(symbol);
-            const quantity = roundStep(rawQty, stepSize);
-
-            if (account && account.position.length) {
-                await orderPlacing(symbol,(parseFloat(account.position[0].notional)) < 0 ? 'BUY' : 'SELL', Math.abs((parseFloat(account.position[0].positionAmt))),
-                    apiKey, apiSecret)
-                    .then(async () => {
-                        await orderPlacing(symbol, side, rawQty).then().catch(console.error);
-                    }).catch();
-
-
-                return
-
-            }
-
-            await orderPlacing(symbol, side, quantity).then().catch(console.error);
-        }).catch(err => console.log(err));
-
-    } catch (err) {
-        console.error('[OrderManager Error]', err.response?.data || err.message);
-    }
-
-
-
-}
+// export async function ocoPlaceOrder(symbol, side, rawQty, takeProfit) {
+//
+//
+//     try {
+//
+//         getAccountForStrategy(symbol.toUpperCase()).then(async (account) => {
+//
+//             const {stepSize} = await getSymbolInfo(symbol);
+//             const quantity = roundStep(rawQty, stepSize);
+//
+//             if (account && account.position.length) {
+//                 await orderPlacing(symbol,(parseFloat(account.position[0].notional)) < 0 ? 'BUY' : 'SELL', Math.abs((parseFloat(account.position[0].positionAmt))),
+//                     apiKey, apiSecret)
+//                     .then(async () => {
+//                         await orderPlacing(symbol, side, rawQty, 0.05).then().catch(console.error);
+//                     }).catch();
+//
+//
+//                 return
+//
+//             }
+//
+//             await orderPlacing(symbol, side, quantity).then().catch(console.error);
+//         }).catch(err => console.log(err));
+//
+//     } catch (err) {
+//         console.error('[OrderManager Error]', err.response?.data || err.message);
+//     }
+//
+//
+//
+// }
 
 async function getSymbolInfo(symbol) {
     const res = await axios.get(`${BASE_URL}/fapi/v1/exchangeInfo`);
@@ -130,42 +130,105 @@ async function getSymbolInfo(symbol) {
 }
 
 
-
-export async function orderPlacing(SYMBOL, SIDE, QUANTITY) {
-
+// --- ✅ Main Order Function ---
+export async function orderPlacing(SYMBOL, SIDE, QUANTITY, TAKE_PROFIT_PRICE = null) {
     return new Promise(async (resolve, reject) => {
-
         try {
-            const response = await axios.get(`https://api.binance.com/api/v3/time`)
+            // Get server time
+            const response = await axios.get(`https://api.binance.com/api/v3/time`);
+            const serverTime = response.data.serverTime.toString();
 
-            let serverTime = response.data.serverTime.toString();
-
-            const {stepSize, tickSize} = await getSymbolInfo(SYMBOL.toUpperCase());
-
+            // Get symbol precision info
+            const { stepSize, tickSize } = await getSymbolInfo(SYMBOL.toUpperCase());
             const quantity = roundStep(QUANTITY, stepSize);
 
+            // Get current price to check notional
+            const priceRes = await axios.get(`${BASE_URL}/fapi/v1/ticker/price?symbol=${SYMBOL.toUpperCase()}`);
+            const currentPrice = parseFloat(priceRes.data.price);
+            const notional = currentPrice * quantity;
+
+            // Check if notional >= $5
+            if (notional < 5) {
+                console.warn(`❌ Skipping ${SYMBOL}: Notional value too low (${notional.toFixed(2)} USDT)`);
+                return reject(`Order too small: $${notional.toFixed(2)} < $5`);
+            }
+
+            // Place MARKET order
             const query = `symbol=${SYMBOL.toUpperCase()}&side=${SIDE}&type=MARKET&quantity=${quantity}&timestamp=${serverTime}&recvWindow=10000`;
-
-
-
             const signature = sign(query, apiSecret);
-            console.log(`[Order] ${SIDE} ${SYMBOL} | Qty: ${quantity}`);
 
+            console.log(`[Order] ${SIDE} ${SYMBOL} | Qty: ${quantity} | Price: ${currentPrice} | Notional: ${notional.toFixed(2)} USDT`);
 
-            const placeOrder  =  await axios.post(`${BASE_URL}/fapi/v1/order?${query}&signature=${signature}`, null, {
-                headers: {'X-MBX-APIKEY': apiKey}
+            const placeOrder = await axios.post(`${BASE_URL}/fapi/v1/order?${query}&signature=${signature}`, null, {
+                headers: { 'X-MBX-APIKEY': apiKey }
             });
 
-            resolve('Order successful ', placeOrder );
+            const entrySide = SIDE.toUpperCase();
+            const tpSide = entrySide === 'BUY' ? 'SELL' : 'BUY';
 
+            // --- Take Profit Order ---
+            if (TAKE_PROFIT_PRICE) {
+                const tpPrice = roundStep(TAKE_PROFIT_PRICE, tickSize);
+                const tpNotional = tpPrice * quantity;
 
+                if (tpNotional < 5) {
+                    console.warn(`❌ Skipping TP order: Notional too low (${tpNotional.toFixed(2)} USDT)`);
+                    return reject(`TP order too small: $${tpNotional.toFixed(2)} < $5`);
+                }
 
-        }catch (err) {
+                const tpQuery = `symbol=${SYMBOL.toUpperCase()}&side=${tpSide}&type=LIMIT&quantity=${quantity}&price=${tpPrice}&timeInForce=GTC&timestamp=${serverTime}&recvWindow=10000`;
+                const tpSignature = sign(tpQuery, apiSecret);
+
+                const tpOrder = await axios.post(`${BASE_URL}/fapi/v1/order?${tpQuery}&signature=${tpSignature}`, null, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+
+                console.log(`[TP] ${tpSide} at ${tpPrice} | TP Notional: ${tpNotional.toFixed(2)} USDT`);
+            }
+
+            resolve('✅ Order + Take Profit placed successfully');
+        } catch (err) {
             console.error('[OrderManager Error]', err.response?.data || err.message);
-            reject( err.response?.data || err.message)
+            reject(err.response?.data || err.message);
         }
-
-
-
-    })
+    });
 }
+
+// export async function orderPlacing(SYMBOL, SIDE, QUANTITY) {
+//
+//     return new Promise(async (resolve, reject) => {
+//
+//         try {
+//             const response = await axios.get(`https://api.binance.com/api/v3/time`)
+//
+//             let serverTime = response.data.serverTime.toString();
+//
+//             const {stepSize, tickSize} = await getSymbolInfo(SYMBOL.toUpperCase());
+//
+//             const quantity = roundStep(QUANTITY, stepSize);
+//
+//             const query = `symbol=${SYMBOL.toUpperCase()}&side=${SIDE}&type=MARKET&quantity=${quantity}&timestamp=${serverTime}&recvWindow=10000`;
+//
+//
+//
+//             const signature = sign(query, apiSecret);
+//             console.log(`[Order] ${SIDE} ${SYMBOL} | Qty: ${quantity}`);
+//
+//
+//             const placeOrder  =  await axios.post(`${BASE_URL}/fapi/v1/order?${query}&signature=${signature}`, null, {
+//                 headers: {'X-MBX-APIKEY': apiKey}
+//             });
+//
+//             resolve('Order successful ', placeOrder );
+//
+//
+//
+//         }catch (err) {
+//             console.error('[OrderManager Error]', err.response?.data || err.message);
+//             reject( err.response?.data || err.message)
+//         }
+//
+//
+//
+//     })
+// }

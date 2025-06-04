@@ -1,11 +1,10 @@
 import fs from 'fs';
 import axios from 'axios';
+import {getTopSymbols, sleep} from "../projectOne/utility/utility.js";
 
 // ------------------ Utility ------------------
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+
 
 // ------------------ Indicator Calculations ------------------
 
@@ -189,20 +188,7 @@ async function getOHLCV(symbol, interval = '5m', limit = 50) {
     }));
 }
 
-async function getTopSymbols(limit = 20) {
-    const url = `https://fapi.binance.com/fapi/v1/ticker/24hr`;
-    const res = await axios.get(url);
-    return res.data
-        .filter(s =>
-            s.symbol.endsWith('USDT') &&
-            !s.symbol.includes('BUSD') &&
-            !s.symbol.includes('DOWN') &&
-            !s.symbol.includes('UP')
-        )
-        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, limit)
-        .map(s => s.symbol);
-}
+
 
 // ------------------ Market Scanner ------------------
 
@@ -215,6 +201,13 @@ export async function scanMarkets(limit, interval = '15m') {
     for (const symbol of symbols) {
         try {
             const candles = await getOHLCV(symbol, interval, 51);
+
+            // ✅ Add this check
+            if (!candles || candles.length < 2) {
+                console.warn(`⚠️ Skipping ${symbol}: Not enough candle data`);
+                continue;
+            }
+
             const close = candles[candles.length - 1].close;
             const prevClose = candles[candles.length - 2].close;
 
@@ -229,6 +222,7 @@ export async function scanMarkets(limit, interval = '15m') {
             } else if (isSideways(candles)) {
                 sideways.push({ symbol, price: close });
             }
+
         } catch (err) {
             console.error(`⚠️ Error on ${symbol}: ${err.message}`);
         }

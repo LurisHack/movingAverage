@@ -1,6 +1,7 @@
 import express  from 'express';
 // import path from 'path';
-import {init} from "./src/init.js";
+// import {init} from "./src/init.js";
+import {initOne} from "./src/projectOne/initOne.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,4 +19,6 @@ app.listen(PORT, () => {
 });
 
 
-await init();
+// await init();
+
+// await initOne()
