@@ -142,7 +142,7 @@ invokeOnceAtNextFiveMinuteMark(() => {
 })
 
 
-await initOne();
+// await initOne();
 
 // symbol: '1000PEPEUSDT',
 //     priceChange: '-0.0003644',
