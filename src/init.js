@@ -356,7 +356,7 @@ export async function init() {
 
          filterSymbolCount += symbols.filter(s => s.symbol === up.symbol).length;
 
-         if(index > filterSymbolCount) return
+         if(index > filterSymbolCount || index > 5) return
 
 
             await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
