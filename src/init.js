@@ -37,7 +37,7 @@ function ema(data, period) {
 }
 
 function calculateOrderQuantity(price) {
-    const budgetUSD = 10;
+    const budgetUSD = 20;
     if (!price || price <= 0) return 0;
     return +(budgetUSD / price).toFixed(6);
 }
@@ -81,7 +81,7 @@ async function takeProfit(currentPrice, symbolObj) {
         //
 
 
-        if (pnl >= 0.05) {
+        if (pnl >= 0.1) {
             symbolObj.entryPrice = null;
             await orderPlacing(symbolObj.symbol, symbolObj.position === 'long' ? 'SELL' : 'BUY', symbolObj.rawQty)
                 .then(() => {
@@ -298,7 +298,7 @@ export async function init() {
         });
     }));
 
-   await scanMarkets(200, '6h').then(async trend => {
+   await scanMarkets(250, '6h').then(async trend => {
         console.log(trend);
 
 
