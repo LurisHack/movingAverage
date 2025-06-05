@@ -1,14 +1,15 @@
- import axios from 'axios';
+// Full code for scanning 5m timeframe short entry signals using RSI, ADX, EMA, and candlestick pattern
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+import fs from 'fs';
+import axios from 'axios';
+import { getTopSymbols, sleep } from "../projectOne/utility/utility.js";
 
-// ------------------ Indicator Functions ------------------
+// ------------------ Indicator Calculations ------------------
 
 function calculateRSI(closes, period = 14) {
     const rsi = [];
     let gains = 0, losses = 0;
+
     for (let i = 1; i <= period; i++) {
         const change = closes[i] - closes[i - 1];
         change >= 0 ? gains += change : losses -= change;
@@ -29,17 +30,6 @@ function calculateRSI(closes, period = 14) {
     }
 
     return rsi;
-}
-
-function calculateEMA(closes, period = 9) {
-    const k = 2 / (period + 1);
-    const ema = [closes.slice(0, period).reduce((a, b) => a + b, 0) / period];
-
-    for (let i = period; i < closes.length; i++) {
-        ema.push(closes[i] * k + ema[ema.length - 1] * (1 - k));
-    }
-
-    return Array(closes.length - ema.length).fill(null).concat(ema);
 }
 
 function calculateADX(candles, period = 14) {
@@ -87,44 +77,44 @@ function calculateADX(candles, period = 14) {
     return Array(candles.length - adx.length).fill(null).concat(adx);
 }
 
-// ------------------ Trend & Reversal Detection ------------------
+function calculateEMA(closes, period = 9) {
+    const k = 2 / (period + 1);
+    const ema = [closes.slice(0, period).reduce((a, b) => a + b, 0) / period];
 
-function isUptrend(candles) {
-    const closes = candles.map(c => c.close);
-    const ema9 = calculateEMA(closes, 9);
-    const ema21 = calculateEMA(closes, 21);
-    const rsi = calculateRSI(closes);
-    const adx = calculateADX(candles);
+    for (let i = period; i < closes.length; i++) {
+        ema.push(closes[i] * k + ema[ema.length - 1] * (1 - k));
+    }
 
-    const last = closes.length - 1;
-    return (
-        ema9[last] > ema21[last] &&
-        closes[last] > ema9[last] &&
-        rsi[last] > 60 &&
-        adx[last] > 20
-    );
+    return Array(closes.length - ema.length).fill(null).concat(ema);
 }
 
-function isShortOpportunity(candles) {
+function isShortEntrySignal(candles) {
     const closes = candles.map(c => c.close);
-    const ema9 = calculateEMA(closes, 9);
-    const ema21 = calculateEMA(closes, 21);
     const rsi = calculateRSI(closes);
+    const lastRSI = rsi[rsi.length - 1];
+    const prevRSI = rsi[rsi.length - 2];
 
-    const last = closes.length - 1;
-    const prevRSI = rsi[last - 1];
-    const currentRSI = rsi[last];
+    const adx = calculateADX(candles);
+    const lastADX = adx[adx.length - 1];
 
-    const rsiDivergence = prevRSI > 70 && currentRSI < prevRSI;
-    const emaCrossDown = ema9[last] < ema21[last];
-    const bearishCandle = candles[last].close < candles[last].open;
+    const lastCandle = candles[candles.length - 1];
+    const prevCandle = candles[candles.length - 2];
 
-    return rsiDivergence && emaCrossDown && bearishCandle;
+    const bearishEngulf = prevCandle.close > prevCandle.open &&
+        lastCandle.open > lastCandle.close &&
+        lastCandle.close < prevCandle.open &&
+        lastCandle.open > prevCandle.close;
+
+    return (
+        lastRSI < prevRSI && lastRSI < 60 &&
+        lastADX > 20 &&
+        bearishEngulf
+    );
 }
 
 // ------------------ Binance API ------------------
 
-async function getOHLCV(symbol, interval = '15m', limit = 50) {
+async function getOHLCV(symbol, interval = '5m', limit = 50) {
     const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
     const res = await axios.get(url);
     return res.data.map(c => ({
@@ -136,43 +126,41 @@ async function getOHLCV(symbol, interval = '15m', limit = 50) {
     }));
 }
 
-async function getTopSymbols(limit = 20) {
-    const url = `https://fapi.binance.com/fapi/v1/ticker/24hr`;
-    const res = await axios.get(url);
-    return res.data
-        .filter(s => s.symbol.endsWith('USDT') && !s.symbol.includes('DOWN') && !s.symbol.includes('UP'))
-        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, limit)
-        .map(s => s.symbol);
-}
+// ------------------ Market Scanner ------------------
 
-// ------------------ Scanner ------------------
-
-export async function scanMarketsForShortOpportunities(limit = 30, interval = '15m') {
+export async function scanMarkets(limit, interval = '5m') {
     const symbols = await getTopSymbols(limit);
-    const shortCandidates = [];
+    const shorts = [];
+
+    console.log(`Scanning ${symbols.length} symbols on ${interval} timeframe...`);
 
     for (const symbol of symbols) {
         try {
-            const candles = await getOHLCV(symbol, interval, 51);
-            const price = candles[candles.length - 1].close;
+            const candles = await getOHLCV(symbol, interval, 52);
+            if (!candles || candles.length < 20) continue;
 
-            if (price > 1 && isUptrend(candles) && isShortOpportunity(candles)) {
-                shortCandidates.push({ symbol, price });
-                console.log(`⚠️ ${symbol} may reverse. Price: ${price}`);
+            const close = candles[candles.length - 1].close;
+            const prevClose = candles[candles.length - 2].close;
+
+            if (close > 1 && isShortEntrySignal(candles)) {
+                const percentDrop = ((prevClose - close) / prevClose) * 100;
+                shorts.push({ symbol, price: close, percentDrop });
             }
         } catch (err) {
-            console.error(`⚠️ Error on ${symbol}: ${err.message}`);
+            console.error(`Error on ${symbol}: ${err.message}`);
         }
+
         await sleep(200);
     }
 
-    return shortCandidates;
+    shorts.sort((a, b) => b.percentDrop - a.percentDrop);
+    return shorts;
 }
 
-// Example Run
+// ------------------ Execution ------------------
+
 (async () => {
-    const result = await scanMarketsForShortOpportunities(250, '30m');
-    console.log('🔻 Short Opportunities from Uptrend:');
-    result.forEach(r => console.log(`${r.symbol} @ ${r.price}`));
+    const result = await scanMarkets(200, '15m');
+    console.log("\n📉 Short Entry Candidates:");
+    result.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`));
 })();
