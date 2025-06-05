@@ -47,8 +47,8 @@ function symbolInitialized(){
                 const quantity = calculateQuantity(10, uptrend.price)
 
                 if (!findSymbol) {
-                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, isTradingTime() ? 0.2: 0.1, quantity)
-                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, isTradingTime()  ? -0.2: -0.1, quantity);
+                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, isTradingTime() ? 0.5: 0.2, quantity)
+                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, isTradingTime()  ? -0.5: -0.2, quantity);
 
                     symbols.push({
                         ...uptrend,
