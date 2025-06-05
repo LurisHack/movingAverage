@@ -35,7 +35,7 @@ export async function initOne() {
 
 function symbolInitialized(){
 
-    scanMarkets(250, '30')
+    scanMarkets(250, '30m')
         .then((res) => {
 
             // symbols = []
