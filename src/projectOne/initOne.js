@@ -99,17 +99,20 @@ setInterval(() => {
 
                         if (unrealizedProfit > 0.05) {
 
-                            orderPlacing(symbol.symbol, symbol.side === 'long' ? 'SELL' : 'BUY', symbol.quantity)
-                                .then(() => {
-                                    symbol.entryPrice = null;
-                                    symbol.hasPosition = false;
-                                    symbol.quantity = null;
-                                    symbol.side = null
-                                    symbols = symbols.filter(s => s.symbol !== ticker.symbol);
-                                }).catch((err) => {
-                                console.error(err)
+                            // orderPlacing(symbol.symbol, symbol.side === 'long' ? 'SELL' : 'BUY', symbol.quantity)
+                            //     .then(() => {
+                            //         symbol.entryPrice = null;
+                            //         symbol.hasPosition = false;
+                            //         symbol.quantity = null;
+                            //         symbol.side = null
+                            //         symbols = symbols.filter(s => s.symbol !== ticker.symbol);
+                            //     }).catch((err) => {
+                            //     console.error(err)
+                            //
+                            // })
 
-                            })
+                            symbols = symbols.filter(s => s.symbol !== ticker.symbol);
+
 
                         }
                     }
@@ -125,7 +128,7 @@ setInterval(() => {
                         const quantity = calculateQuantity(10, currentPrice)
 
 
-                        orderPlacing(symbol.symbol, 'SELL', quantity)
+                        orderPlacing(symbol.symbol, 'SELL', quantity, 0.05)
                             .then(() => {
                                 symbol.entryPrice = currentPrice;
                                 symbol.hasPosition = true;
