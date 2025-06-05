@@ -20,18 +20,26 @@ export async function initOne() {
     await Promise.all(account.positions.map((position) => {
         symbols.push({
             symbol: position.symbol,
-            position: parseFloat(position.notional) < 0 ? 'short' : 'long',
+            side: parseFloat(position.notional) < 0 ? 'short' : 'long',
             entryPrice: parseFloat(position.entryPrice),
-            rawQty: Math.abs(parseFloat(position.positionAmt)),
+            quantity: Math.abs(parseFloat(position.positionAmt)),
             currentMA: 0, ws: null, hasPosition: true
         });
-    }));
+    })).then(() => {
 
-    scanMarkets(250, '1h')
+        symbolInitialized()
+
+    })
+}
+
+
+function symbolInitialized(){
+
+    scanMarkets(250, '30')
         .then((res) => {
 
             // symbols = []
-            console.log(res);
+            // console.log(res);
             res.uptrends.forEach(uptrend => {
 
                 const findSymbol = symbols.find(s => s.symbol === uptrend.symbol);
@@ -51,7 +59,12 @@ export async function initOne() {
 
             })
 
+            console.log('[15 minutes]')
             console.log(symbols)
+
+            invokeOnceAtNextFiveMinuteMark(() => {
+                restartBot().catch(console.error);
+            })
 
         })
 }
@@ -59,6 +72,9 @@ export async function initOne() {
 
 setInterval(() => {
 
+
+    console.log('[Interval]')
+    console.log(symbols)
     getTicker().then(tickers => {
         // console.log(ticker);
 
@@ -75,6 +91,28 @@ setInterval(() => {
                 if (ticker.symbol === symbol.symbol) {
 
 
+                    if (symbol.entryPrice && symbol.quantity) {
+                        const unrealizedProfit = (symbol.side === 'long') ?
+                            (currentPrice - symbol.entryPrice) * symbol.quantity :
+                            (symbol.entryPrice - currentPrice) * symbol.quantity;
+
+                        if (unrealizedProfit > 0.05) {
+
+                            orderPlacing(symbol.symbol, symbol.side === 'long' ? 'SELL' : 'BUY', symbol.quantity)
+                                .then(() => {
+                                    symbol.entryPrice = null;
+                                    symbol.hasPosition = false;
+                                    symbol.quantity = null;
+                                    symbol.side = null
+                                    symbols = symbols.filter(s => s.symbol !== ticker.symbol);
+                                }).catch((err) => {
+                                console.error(err)
+
+                            })
+
+                        }
+                    }
+
 
                     //Add order
                     if (currentPrice > symbol.entryTargetPrice && !symbol.hasPosition) {
@@ -83,12 +121,17 @@ setInterval(() => {
 
                         console.log('Order placement ', symbol)
 
+                        const quantity = calculateQuantity(10, currentPrice)
 
-                        orderPlacing(symbol.symbol, 'SELL', calculateQuantity(10, currentPrice), 0.05)
+
+                        orderPlacing(symbol.symbol, 'SELL', quantity)
                             .then(() => {
                                 symbol.entryPrice = currentPrice;
                                 symbol.hasPosition = true;
-                        symbol.position = 'short'
+                                symbol.quantity = quantity;
+                                symbol.side = 'short';
+
+                                symbol.side = 'short'
                             }).catch((err) => {
                             console.error(err)
                             symbol.hasPosition = false;
@@ -100,7 +143,7 @@ setInterval(() => {
                     //Remove symbol for -pnl
                     // const quantity = calculateQuantity(10, currentPrice);
 
-                    console.log(`Stop Loss Price: ${symbol.removeSymbolPrice}`);
+                    // console.log(`Stop Loss Price: ${symbol.removeSymbolPrice}`);
 
                     if (symbol.removeSymbolPrice && (currentPrice < symbol.removeSymbolPrice) && !symbol.hasPosition) {
                         console.log(`❌ Stop loss hit for ${symbol.symbol} at ${currentPrice}, removing.`);
@@ -133,13 +176,9 @@ export async function restartBot() {
         console.log("🧹 Garbage collected");
     }
 
-    await initOne();
+    await symbolInitialized()
 
 }
-
-invokeOnceAtNextFiveMinuteMark(() => {
-    restartBot().catch(console.error);
-})
 
 
 // await initOne();

@@ -27,8 +27,6 @@ export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
-
 export async function getTopSymbols(limit = 20) {
     const url = `https://fapi.binance.com/fapi/v1/ticker/24hr`;
     const res = await axios.get(url);
@@ -44,7 +42,6 @@ export async function getTopSymbols(limit = 20) {
         .map(s => s.symbol);
 }
 
-
 export async function getTicker() {
     const url = `https://fapi.binance.com/fapi/v1/ticker/24hr`;
     const res = await axios.get(url);
@@ -59,7 +56,6 @@ export async function getTicker() {
         // .slice(0, limit)
         .map(s => s);
 }
-
 
 export function invokeOnceAtNextFiveMinuteMark(callback) {
     const now = new Date();
