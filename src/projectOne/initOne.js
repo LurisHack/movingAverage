@@ -36,7 +36,7 @@ export async function initOne() {
 
 function symbolInitialized(){
 
-    scanMarkets(250, '5m')
+    scanMarkets(250, '6h')
         .then((res) => {
 
             // symbols = []
@@ -47,8 +47,8 @@ function symbolInitialized(){
                 const quantity = calculateQuantity(10, uptrend.price)
 
                 if (!findSymbol) {
-                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, isTradingTime() ? 0.1: 0.05, quantity)
-                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, isTradingTime()  ? -0.1: -0.05, quantity);
+                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, isTradingTime() ? 0.3: 0.1, quantity)
+                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, isTradingTime()  ? -0.3: -0.1, quantity);
 
                     symbols.push({
                         ...uptrend,
