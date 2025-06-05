@@ -9,6 +9,7 @@ import {
 import {getAccount} from "../utility/account.js";
 import dotenv from "dotenv";
 import {orderPlacing} from "../orderplacing.js";
+import {isTradingTime} from "../utility/tradingTime.js";
 
 dotenv.config();
 
@@ -35,7 +36,7 @@ export async function initOne() {
 
 function symbolInitialized(){
 
-    scanMarkets(250, '15m')
+    scanMarkets(250, '5m')
         .then((res) => {
 
             // symbols = []
@@ -46,8 +47,8 @@ function symbolInitialized(){
                 const quantity = calculateQuantity(10, uptrend.price)
 
                 if (!findSymbol) {
-                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, 0.1, quantity)
-                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, -0.1, quantity);
+                    const entryTargetPrice = calculateTargetSellPrice(uptrend.price, isTradingTime() ? 0.2: 0.1, quantity)
+                    const removeSymbolPrice = calculateStopLossPrice(uptrend.price, isTradingTime()  ? -0.2: -0.1, quantity);
 
                     symbols.push({
                         ...uptrend,
@@ -59,7 +60,7 @@ function symbolInitialized(){
 
             })
 
-            console.log('[15 minutes]')
+            console.log('[5 minutes]')
             console.log(symbols)
 
             invokeOnceAtNextFiveMinuteMark(() => {
