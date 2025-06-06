@@ -160,7 +160,7 @@ export async function scanMarkets(limit, interval = '5m') {
 // ------------------ Execution ------------------
 
 (async () => {
-    const result = await scanMarkets(300, '2h');
+    const result = await scanMarkets(300, '1h');
     console.log("\n📉 Short Entry Candidates:");
     result.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`));
 })();
