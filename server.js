@@ -21,4 +21,4 @@ app.listen(PORT, () => {
 
 // await init();
 
-await initOne()
+// await initOne()
