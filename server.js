@@ -1,7 +1,7 @@
 import express  from 'express';
 // import path from 'path';
 // import {init} from "./src/init.js";
-import {initOne} from "./src/projectOne/initOne.js";
+// import {initOne} from "./src/projectOne/initOne.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
