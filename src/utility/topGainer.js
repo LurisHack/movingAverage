@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 export async function getTopFuturesGainers(limit = 5) {
     try {
-        // Step 1: Get valid trading futures symbols only
+        // Step 1: Get valid trading futures symbols.js only
         const exchangeInfoRes = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
         const exchangeInfo = await exchangeInfoRes.json();
 

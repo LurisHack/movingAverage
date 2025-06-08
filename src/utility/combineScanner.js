@@ -9,10 +9,10 @@ async function getFuturesUSDTMarkets() {
     return symbols;
 }
 
-async function fetchOHLCV(symbol = 'BTCUSDT', interval = '15m', limit = 100) {
+async function fetchOHLCV(symbol, interval, limit, retry = 2) {
     try {
         const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-        const { data } = await axios.get(url);
+        const { data } = await axios.get(url, { timeout: 5000 });
         return data.map(d => ({
             open: parseFloat(d[1]),
             high: parseFloat(d[2]),
@@ -21,7 +21,12 @@ async function fetchOHLCV(symbol = 'BTCUSDT', interval = '15m', limit = 100) {
             volume: parseFloat(d[5]),
         }));
     } catch (err) {
-        console.error(`Error fetching ${symbol}: ${err.message}`);
+        if (retry > 0) {
+            console.warn(`⚠️ Retry ${symbol}: ${err.message}`);
+            await new Promise(r => setTimeout(r, 300));
+            return fetchOHLCV(symbol, interval, limit, retry - 1);
+        }
+        console.error(`❌ Error fetching ${symbol}: ${err.message}`);
         return null;
     }
 }
@@ -53,9 +58,10 @@ function calculateIndicators(candles) {
     return { rsi, adx, emaFast, emaSlow, macd, bb, closes, volumes };
 }
 
-function getVolumeProfile(volumes) {
-    const totalVolume = volumes.reduce((sum, v) => sum + v, 0);
-    return volumes[volumes.length - 1] / totalVolume;
+function getVolumeSpike(volumes) {
+    const recent = volumes[volumes.length - 1];
+    const avg = volumes.slice(-21, -1).reduce((a, b) => a + b, 0) / 20;
+    return recent > avg * 2;
 }
 
 function getSignal(indicators) {
@@ -67,44 +73,47 @@ function getSignal(indicators) {
     const lastADX = adx[i]?.adx;
     const lastMACD = macd[i];
     const lastBB = bb[i];
-    const lastVolProfile = getVolumeProfile(volumes);
+    const isVolSpike = getVolumeSpike(volumes);
 
     const emaCrossUp = emaFast[i] > emaSlow[i] && emaFast[i - 1] <= emaSlow[i - 1];
     const emaCrossDown = emaFast[i] < emaSlow[i] && emaFast[i - 1] >= emaSlow[i - 1];
 
     const longSignal =
         lastRSI > 50 &&
-        lastADX > 20 &&
+        // lastADX > 20 &&
         emaCrossUp &&
         lastMACD.MACD > lastMACD.signal &&
-        lastClose > lastBB.middle &&
-        lastVolProfile > 0.01;
+        // lastClose > lastBB.middle &&
+        isVolSpike;
 
     const shortSignal =
         lastRSI < 50 &&
-        lastADX > 20 &&
+        // lastADX > 20 &&
         emaCrossDown &&
         lastMACD.MACD < lastMACD.signal &&
-        lastClose < lastBB.middle &&
-        lastVolProfile > 0.01;
+        // lastClose < lastBB.middle &&
+        isVolSpike;
 
     return { long: longSignal, short: shortSignal };
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function scanAllCoins(limit, interval) {
     const symbols = await getFuturesUSDTMarkets();
-    // const interval = '15m';
-    // const limit = 100;
+    console.log(`\n🕒 Scanning timeframe: ${interval} (${symbols.length} coins)`);
 
     const results = [];
 
     for (const symbol of symbols) {
+        await sleep(100); // 100ms delay between each API call
         const candles = await fetchOHLCV(symbol, interval, limit);
         if (!candles || candles.length < 50) continue;
 
         const indicators = calculateIndicators(candles);
         const signal = getSignal(indicators);
-
         if (signal.long || signal.short) {
             results.push({ symbol, signal: signal.long ? 'LONG' : 'SHORT' });
         }
@@ -114,8 +123,31 @@ async function scanAllCoins(limit, interval) {
         console.log('📉 No signals found.');
     } else {
         console.log('📊 Detected Signals:');
-        results.forEach(r => console.log(`${r.symbol}: ${r.signal}`));
+        results.forEach(r => console.log(`➡️ ${r.symbol}: ${r.signal}`));
     }
 }
 
-scanAllCoins(300, '1h');
+const tfLimitMap = {
+    '5m': 250,
+    '15m': 250,
+    '30m': 200,
+    '1h': 150,
+    '4h': 120,
+    '6h': 100,
+    '12h': 80,
+    '1d': 80,
+};
+
+
+async function startScan() {
+    const timeframes = Object.keys(tfLimitMap);
+    for (const tf of timeframes) {
+        const limit = tfLimitMap[tf];
+        await scanAllCoins(limit, tf);
+    }
+
+    console.log('✅ Scan complete. Waiting 10 mins...\n');
+    setTimeout(startScan, 600_000);
+}
+
+startScan();

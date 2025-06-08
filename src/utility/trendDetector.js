@@ -239,12 +239,12 @@ export async function scanMarkets(limit, interval = '15m') {
 // ------------------ Execution ------------------
 
 (async () => {
-    // const result = await scanMarkets(50, '6h');
-    // console.log("\n📉 Downtrend Coins:");
-    // result.downtrends.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`));
-    // console.log("\n📈 Uptrend Coins:");
-    // result.uptrends.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔺 ${d.percentGain.toFixed(2)}%`));
-    // console.log("\n🔁 Sideways Coins:");
-    // result.sideways.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)}`));
-    // console.log(result)
+    const result = await scanMarkets(200, '15m');
+    console.log("\n📉 Downtrend Coins:");
+    result.downtrends.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔻 ${d.percentDrop.toFixed(2)}%`));
+    console.log("\n📈 Uptrend Coins:");
+    result.uptrends.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)} 🔺 ${d.percentGain.toFixed(2)}%`));
+    console.log("\n🔁 Sideways Coins:");
+    result.sideways.forEach(d => console.log(`${d.symbol} @ ${d.price.toFixed(4)}`));
+    console.log(result)
 })();

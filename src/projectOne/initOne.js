@@ -39,7 +39,7 @@ function symbolInitialized(){
     scanMarkets(250, '1h')
         .then((res) => {
 
-            // symbols = []
+            // symbols.js = []
             // console.log(res);
             res.uptrends.forEach(uptrend => {
 
@@ -111,7 +111,7 @@ setInterval(() => {
 
                             })
 
-                            // symbols = symbols.filter(s => s.symbol !== ticker.symbol);
+                            // symbols.js = symbols.js.filter(s => s.symbol !== ticker.symbol);
 
 
                         }

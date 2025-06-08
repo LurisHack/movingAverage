@@ -243,9 +243,9 @@ function calculateOrderQuantity(price) {
 // }
 //
 // function resetSymbol(symbol) {
-//     const existing = symbols.find(s => s.symbol === symbol);
+//     const existing = symbols.js.find(s => s.symbol === symbol);
 //     if (existing) cleanUpSymbol(existing);
-//     symbols = symbols.filter(s => s.symbol !== symbol);
+//     symbols.js = symbols.js.filter(s => s.symbol !== symbol);
 //     const newSymbolObj = {
 //         symbol,
 //         candles: [],
@@ -261,7 +261,7 @@ function calculateOrderQuantity(price) {
 //         currentMA: 0,
 //         ws: null
 //     };
-//     symbols.push(newSymbolObj);
+//     symbols.js.push(newSymbolObj);
 //     initializeSymbol(newSymbolObj);
 //     return newSymbolObj;
 // }
@@ -307,11 +307,11 @@ export async function init() {
       // await  Promise.all(trend.downtrends.map(async (down) => {
       //       await new Promise(res => setTimeout(res, 300)); // 300ms delay between API calls
       //       const rawQty = calculateOrderQuantity(parseFloat(down.price))
-      //       const findSymbol = symbols.find(s => s.symbol === down.symbol);
+      //       const findSymbol = symbols.js.find(s => s.symbol === down.symbol);
       //       if (!findSymbol) {
       //
       //           const pushData = () => {
-      //               symbols.push({
+      //               symbols.js.push({
       //                   symbol: down.symbol,
       //                   candles: [],
       //                   closes: [],
@@ -336,7 +336,7 @@ export async function init() {
       //
       //       } else {
       //
-      //           const filterPosition = symbols.filter(s => s.symbol ===  down.symbol)[0];
+      //           const filterPosition = symbols.js.filter(s => s.symbol ===  down.symbol)[0];
       //           if(filterPosition && filterPosition.position === 'long') {
       //           await ocoPlaceOrder(down.symbol,   'SELL', rawQty)
       //               .catch(err => {
@@ -391,7 +391,7 @@ export async function init() {
 
             } else {
 
-                // const filterPosition = symbols.filter(s => s.symbol === up.symbol)[0];
+                // const filterPosition = symbols.js.filter(s => s.symbol === up.symbol)[0];
                 // if(filterPosition && filterPosition.position === 'short') {
                 //     await ocoPlaceOrder(up.symbol, 'BUY', rawQty)
                 //         .catch(err => {
@@ -413,7 +413,7 @@ export async function init() {
 
     }).catch(console.error);
 
-    // symbols.map(symbolObj => initializeSymbol(symbolObj));
+    // symbols.js.map(symbolObj => initializeSymbol(symbolObj));
 
     invokeOnceAtNextFiveMinuteMark(() => {
         restartBot().catch(console.error);
