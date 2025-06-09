@@ -78,7 +78,7 @@ export function getMACD(index) {
     const candles = dataObject.coins[index].candles;
     const closes = candles.map(c => parseFloat(c[4]));
 
-    if (closes.length < 35) return null; // Enough data check
+    if (closes.length < 35) return null;
 
     const macdInput = {
         values: closes,
@@ -89,9 +89,18 @@ export function getMACD(index) {
         SimpleMASignal: false
     };
 
-    const result = MACD.calculate(macdInput);
-    return result.at(-1); // Get last MACD object: { MACD, signal, histogram }
+    const macdArr = MACD.calculate(macdInput);
+    const last2 = macdArr.slice(-2);
+    if (last2.length < 2) return null;
+
+    const weakening = last2[1].histogram < last2[0].histogram;
+
+    return {
+        ...last2[1],
+        weakening
+    };
 }
+
 export function isVolumeSpike(index, length = 20, spikeMultiplier = 2) {
     const candles = dataObject.coins[index].candles;
     if (candles.length < length + 1) return false;
@@ -197,7 +206,8 @@ export function isOverBought(index) {
         return (
             rsi >= dataObject.overboughtThreshold &&
             stoch > dataObject.overboughtThreshold &&
-            (macd.histogram > 0)
+            (macd.histogram > 0) &&
+            !macd.weakening
             // && bullishReversal
         );
     }
@@ -216,7 +226,8 @@ export function isOverSold(index) {
         return (
             rsi <= dataObject.oversoldThreshold &&
             stoch < dataObject.oversoldThreshold &&
-            (macd.histogram < 0)
+            (macd.histogram < 0) &&
+            !macd.weakening
             // && bearishReversal
         );
     }
@@ -267,26 +278,45 @@ export function forSideWayOver(index) {
 export function buySell(index) {
     const macd = getMACD(index);
 
-
     if (!macd || typeof macd.histogram !== 'number') {
-        return { buy: false, sell: false }; // Prevent undefined errors
+        return { buy: false, sell: false };
     }
 
     const bullishReversal = isBullishReversalSignal(index);
     const bearishReversal = isBearishReversalSignal(index);
 
     return {
-        buy: macd.histogram > 0 && macd.MACD > macd.signal && bullishReversal,
-        sell: macd.histogram < 0 && macd.MACD < macd.signal && bearishReversal
+        buy: macd.histogram > 0 && macd.MACD > macd.signal && bullishReversal && !macd.weakening,
+        sell: macd.histogram < 0 && macd.MACD < macd.signal && bearishReversal && !macd.weakening
     };
 }
 
 
-export   function exitSignal(index){
+export function exitSignal(index) {
     const bullishReversal = isBullishReversalSignal(index);
     const bearishReversal = isBearishReversalSignal(index);
-    return {
-        sellExit: bullishReversal,
-        buyExit: bearishReversal,
+    const rsi = calculateRSI(index);
+    const macd = getMACD(index);
+    const volumeSpike = isVolumeSpike(index);
+
+    if (!macd || rsi === null) {
+        return { sellExit: false, buyExit: false };
     }
+
+    return {
+        sellExit:
+            bullishReversal &&                   // bearish position → exit when bullish reversal
+            macd.histogram > 0 &&                // MACD turning positive
+            macd.weakening &&                    // but weakening
+            rsi < 70 &&                          // previously overbought, now weakening
+            volumeSpike,                         // spike may suggest distribution
+
+        buyExit:
+            bearishReversal &&                   // bullish position → exit when bearish reversal
+            macd.histogram < 0 &&                // MACD turning negative
+            macd.weakening &&                    // momentum weakening
+            rsi > 30 &&                          // previously oversold, now weakening
+            volumeSpike                          // spike may suggest selling pressure
+    };
 }
+
