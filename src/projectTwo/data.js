@@ -76,7 +76,7 @@ function takeProfit(index, currentPrice) {
 
         // console.log(status.symbol, 'pnl ', pnl)
 
-        if (pnl >= 0.05 || pnl <= -0.05) {
+        if (pnl >= 0.1 || pnl <= -0.1) {
             if(status.profitTaking) return;
                 status.profitTaking = true;
             execute(index, 'BUY', status.quantity).then(() => {
@@ -178,7 +178,7 @@ function detectAndLog(index) {
 
     const hasPosition = dataObject.coins[index].hasPosition
 
-    const { overSold , overBought } = forSideWayOver(index);
+    // const { overSold , overBought } = forSideWayOver(index);
 
     const signal = buySell(index);
     const exits = exitSignal(index);
