@@ -76,7 +76,7 @@ function takeProfit(index, currentPrice) {
 
         // console.log(status.symbol, 'pnl ', pnl)
 
-        if (pnl >= 0.1 || pnl <= -0.1) {
+        if (pnl >= 0.05 || pnl <= -0.05) {
             if(status.profitTaking) return;
                 status.profitTaking = true;
             execute(index, 'BUY', status.quantity).then(() => {
@@ -92,7 +92,7 @@ function takeProfit(index, currentPrice) {
 
         // console.log(status.symbol, 'pnl ', pnl)
 
-        if (pnl >= 0.1 || pnl <= -0.1) {
+        if (pnl >= 0.05 || pnl <= -0.05) {
             if(status.profitTaking) return;
             status.profitTaking = true;
             execute(index, 'SELL', status.quantity).then(() => {
@@ -166,7 +166,7 @@ function detectAndLog(index) {
 
 
 
-    const trend = detectTrend(index);
+    // const trend = detectTrend(index);
     // console.log(trend)
 
     // return
@@ -237,7 +237,7 @@ function detectAndLog(index) {
     }
 
 
-    if(trend === 'uptrend' && signal.buy && !hasPosition){
+    if(signal.buy && !hasPosition){
         console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
 
         // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
@@ -252,7 +252,7 @@ function detectAndLog(index) {
         }).catch((err) => {console.log(err)});
     }
 
-    if(trend === 'downtrend' && signal.sell && !hasPosition){
+    if(signal.sell && !hasPosition){
         console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
 
         // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
