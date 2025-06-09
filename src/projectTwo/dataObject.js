@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export let dataObject = {
-    interval: '1m',
+    interval: '5m',
     thresholdPercent: 1.5,
     limit: 100,// RSI calculation needs 14+ candles
     rsiPeriod: 14,

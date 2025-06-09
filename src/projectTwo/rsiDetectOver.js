@@ -73,33 +73,7 @@ export function getStochRSI(index) {
     return stochRsi;
 }
 
-// ✅ MACD Calculation
-export function getMACD(index) {
-    const candles = dataObject.coins[index].candles;
-    const closes = candles.map(c => parseFloat(c[4]));
 
-    if (closes.length < 35) return null;
-
-    const macdInput = {
-        values: closes,
-        fastPeriod: 12,
-        slowPeriod: 26,
-        signalPeriod: 9,
-        SimpleMAOscillator: false,
-        SimpleMASignal: false
-    };
-
-    const macdArr = MACD.calculate(macdInput);
-    const last2 = macdArr.slice(-2);
-    if (last2.length < 2) return null;
-
-    const weakening = last2[1].histogram < last2[0].histogram;
-
-    return {
-        ...last2[1],
-        weakening
-    };
-}
 
 export function isVolumeSpike(index, length = 20, spikeMultiplier = 2) {
     const candles = dataObject.coins[index].candles;
@@ -148,7 +122,95 @@ export function getCandlePattern(index) {
 }
 
 
-export function isBullishReversalSignal(index) {
+// Helper: Supertrend Calculation
+function getSupertrendSignal(index) {
+    const candles = dataObject.coins[index].candles;
+    if (candles.length < 15) return null;
+
+    const atrPeriod = 10;
+    const multiplier = 3;
+
+    const highs = candles.map(c => parseFloat(c[2]));
+    const lows = candles.map(c => parseFloat(c[3]));
+    const closes = candles.map(c => parseFloat(c[4]));
+
+    const tr = [];
+    for (let i = 1; i < candles.length; i++) {
+        const high = highs[i];
+        const low = lows[i];
+        const prevClose = closes[i - 1];
+        tr.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
+    }
+
+    const atr = [];
+    for (let i = atrPeriod - 1; i < tr.length; i++) {
+        const slice = tr.slice(i - atrPeriod + 1, i + 1);
+        const avg = slice.reduce((a, b) => a + b, 0) / atrPeriod;
+        atr.push(avg);
+    }
+
+    const basicUpperBand = closes.slice(-atr.length).map((close, i) => (highs[i + atrPeriod] + lows[i + atrPeriod]) / 2 + multiplier * atr[i]);
+    const basicLowerBand = closes.slice(-atr.length).map((close, i) => (highs[i + atrPeriod] + lows[i + atrPeriod]) / 2 - multiplier * atr[i]);
+
+    const finalUpperBand = [];
+    const finalLowerBand = [];
+    const trend = [];
+
+    for (let i = 0; i < atr.length; i++) {
+        if (i === 0) {
+            finalUpperBand.push(basicUpperBand[i]);
+            finalLowerBand.push(basicLowerBand[i]);
+            trend.push('down');
+        } else {
+            const prevClose = closes[i + atrPeriod - 1];
+            const prevUpper = finalUpperBand[i - 1];
+            const prevLower = finalLowerBand[i - 1];
+
+            const currUpper = basicUpperBand[i] < prevUpper || prevClose > prevUpper ? basicUpperBand[i] : prevUpper;
+            const currLower = basicLowerBand[i] > prevLower || prevClose < prevLower ? basicLowerBand[i] : prevLower;
+
+            finalUpperBand.push(currUpper);
+            finalLowerBand.push(currLower);
+
+            const direction = prevClose <= currUpper ? 'down' : 'up';
+            trend.push(direction);
+        }
+    }
+
+    return trend[trend.length - 1]; // latest trend: 'up' or 'down'
+}
+
+// ✅ MACD Calculation
+// MACD Calculation
+function getMACD(index) {
+    const candles = dataObject.coins[index].candles;
+    const closes = candles.map(c => parseFloat(c[4]));
+    if (closes.length < 35) return null;
+
+    const macdInput = {
+        values: closes,
+        fastPeriod: 12,
+        slowPeriod: 26,
+        signalPeriod: 9,
+        SimpleMAOscillator: false,
+        SimpleMASignal: false
+    };
+
+    const macdArr = MACD.calculate(macdInput);
+    const last2 = macdArr.slice(-2);
+    if (last2.length < 2) return null;
+
+    const weakening = last2[1].histogram < last2[0].histogram;
+
+    return {
+        ...last2[1],
+        weakening
+    };
+}
+
+
+// Bullish Reversal Signal
+function isBullishReversalSignal(index) {
     const candles = dataObject.coins[index].candles;
     if (candles.length < 3) return false;
 
@@ -160,19 +222,18 @@ export function isBullishReversalSignal(index) {
     }));
 
     const bodySize = Math.abs(last.close - last.open);
-    if (bodySize < (last.high - last.low) * 0.25) return false; // Avoid weak candles
+    if (bodySize < (last.high - last.low) * 0.25) return false;
 
-    // Simple Bullish Engulfing
     return last.close > last.open &&
         prev.close < prev.open &&
         last.close > prev.open &&
         last.open < prev.close;
 }
 
-export function isBearishReversalSignal(index) {
+// Bearish Reversal Signal
+function isBearishReversalSignal(index) {
     const candles = dataObject.coins[index].candles;
     if (candles.length < 3) return false;
-
 
     const [prev, last] = candles.slice(-2).map(c => ({
         open: parseFloat(c[1]),
@@ -182,11 +243,8 @@ export function isBearishReversalSignal(index) {
     }));
 
     const bodySize = Math.abs(last.close - last.open);
-    if (bodySize < (last.high - last.low) * 0.25) return false; // Avoid weak candles
+    if (bodySize < (last.high - last.low) * 0.25) return false;
 
-
-
-    // Simple Bearish Engulfing
     return last.close < last.open &&
         prev.close > prev.open &&
         last.close < prev.open &&
@@ -275,22 +333,28 @@ export function forSideWayOver(index) {
 }
 
 
+// Main Buy/Sell Signal
 export function buySell(index) {
+    const candles = dataObject.coins[index].candles;
+    if (!candles || candles.length < 35) return { buy: false, sell: false };
+
     const macd = getMACD(index);
+    const trend = getSupertrendSignal(index);
+    const bullish = isBullishReversalSignal(index);
+    const bearish = isBearishReversalSignal(index);
 
-    if (!macd || typeof macd.histogram !== 'number') {
-        return { buy: false, sell: false };
-    }
+    const lastVolume = parseFloat(candles[candles.length - 1][5]);
+    const avgVolume = candles.slice(-20).reduce((acc, c) => acc + parseFloat(c[5]), 0) / 20;
+    const strongVolume = lastVolume > avgVolume * 0.8;
 
-    const bullishReversal = isBullishReversalSignal(index);
-    const bearishReversal = isBearishReversalSignal(index);
+    const strongMACD = macd && macd.histogram > 0 && macd.MACD > macd.signal && !macd.weakening;
+    const strongSellMACD = macd && macd.histogram < 0 && macd.MACD < macd.signal && !macd.weakening;
 
     return {
-        buy: macd.histogram > 0 && (macd.MACD > macd.signal) && bullishReversal && !macd.weakening,
-        sell: macd.histogram < 0 && (macd.MACD < macd.signal) && bearishReversal && !macd.weakening
+        buy: strongMACD && bullish && trend === 'up' && strongVolume,
+        sell: strongSellMACD && bearish && trend === 'down' && strongVolume
     };
 }
-
 
 export function exitSignal(index) {
     const bullishReversal = isBullishReversalSignal(index);
