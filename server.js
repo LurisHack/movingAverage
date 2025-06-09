@@ -20,4 +20,4 @@ app.listen(PORT, () => {
 
 // await initOne()
 
-projectOneInit()
+// projectOneInit()
