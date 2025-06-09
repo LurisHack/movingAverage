@@ -5,10 +5,10 @@ export let dataObject = {
     thresholdPercent: 1.5,
     limit: 100,// RSI calculation needs 14+ candles
     rsiPeriod: 14,
-    overboughtThreshold: 60,
-    oversoldThreshold: 40,
-    sideWayOverboughtThreshold: 75,
-    sideWayOversoldThreshold: 25,
+    overboughtThreshold: 70,
+    oversoldThreshold: 30,
+    sideWayOverboughtThreshold: 70,
+    sideWayOversoldThreshold: 30,
     lookback: 20,
     maxSidewaySlope: 0.5,  // NEW: Limit trend strength in sideways detection
     minSlope: 0.5, // <-- NEW: for exclusive slope condition
@@ -17,6 +17,8 @@ export let dataObject = {
     profitTaking: false,
     lastExitTime: 0,
     lastDecisionTime: 0,
+    quantity: 0,
+    ws:null,
     coins: []
 
 }
@@ -55,6 +57,7 @@ async function getTopLowCapSymbolsFromBinance(maxPrice = 1, limit = 50) {
             'usdd', 'gusd', 'usdp', 'eur', 'eurt'
         ]);
 
+        // Replace the return statement inside getTopLowCapSymbolsFromBinance with this:
         return tickerInfo.data
             .filter(t => {
                 const base = t.symbol.replace('USDT', '').toLowerCase();
@@ -66,9 +69,10 @@ async function getTopLowCapSymbolsFromBinance(maxPrice = 1, limit = 50) {
                     futuresSymbols.has(t.symbol)
                 );
             })
-            .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+            .sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent)) // ✅ Sort by gainer %
             .slice(0, limit)
             .map(t => t.symbol.toLowerCase());
+
 
     } catch (error) {
         console.error('❌ Error fetching Binance data:', error.message);
@@ -80,17 +84,19 @@ async function getTopLowCapSymbolsFromBinance(maxPrice = 1, limit = 50) {
 export async function setObject() {
 
 
-    // let symbolAry = await getTopLowCapSymbolsFromBinance(5, 250);
-    // if (!symbolAry.length) {
-    //     console.warn('⚠️ No valid trading symbols retrieved from Binance.');
-    //     return [];
-    // }
-    // console.log(`✅ Selected ${symbolAry.length} symbols:`, symbolAry);
-    //
-    // symbols = symbolAry.map((symbol, i) => createStrategyObject(i, symbol));
-    //
+    let symbolAry = await getTopLowCapSymbolsFromBinance(5, 100);
+    if (!symbolAry.length) {
+        console.warn('⚠️ No valid trading symbols retrieved from Binance.');
+        return [];
+    }
+    console.log(`✅ Selected ${symbolAry.length} symbols:`, symbolAry);
 
-    symbols = ['solusdt'].map((symbol, i) => createStrategyObject(i, symbol));
+    symbols = symbolAry.map((symbol, i) => createStrategyObject(i, symbol));
+
+
+    // symbols = ['dogeusdt'].map((symbol, i) => createStrategyObject(i, symbol));
 
     return symbols;
 }
+
+

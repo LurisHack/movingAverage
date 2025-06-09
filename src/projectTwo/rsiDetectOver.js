@@ -1,34 +1,47 @@
 import {dataObject} from "./dataObject.js";
+import {MACD} from "technicalindicators";
 
 // ✅ RSI Calculation
 function calculateRSI(index) {
     const candles = dataObject.coins[index].candles;
+    const period = dataObject.rsiPeriod || 14;
     const closes = candles.map(c => parseFloat(c[4]));
-    if (closes.length < dataObject.rsiPeriod + 1) return null;
 
-    let gains = 0;
-    let losses = 0;
+    if (closes.length < period + 1) return null;
 
-    for (let i = closes.length - dataObject.rsiPeriod - 1; i < closes.length - 1; i++) {
-        const change = closes[i + 1] - closes[i];
+    // Initial average gain/loss
+    let gains = 0, losses = 0;
+    for (let i = 1; i <= period; i++) {
+        const change = closes[i] - closes[i - 1];
         if (change >= 0) gains += change;
         else losses -= change;
     }
 
-    const avgGain = gains / dataObject.rsiPeriod;
-    const avgLoss = losses / dataObject.rsiPeriod;
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+
+    // Wilder's smoothing for remaining candles
+    for (let i = period + 1; i < closes.length; i++) {
+        const change = closes[i] - closes[i - 1];
+        const gain = change > 0 ? change : 0;
+        const loss = change < 0 ? -change : 0;
+
+        avgGain = (avgGain * (period - 1) + gain) / period;
+        avgLoss = (avgLoss * (period - 1) + loss) / period;
+    }
 
     if (avgLoss === 0) return 100;
-
     const rs = avgGain / avgLoss;
-    return 100 - (100 / (1 + rs));
+    const rsi = 100 - (100 / (1 + rs));
+
+    return rsi;
 }
 
 // ✅ Stochastic RSI Calculation
 export function getStochRSI(index) {
     const candles = dataObject.coins[index].candles;
     const closes = candles.map(c => parseFloat(c[4]));
-    if (closes.length < 28) return null; // 14 RSI + 14 Stoch Period
+    if (closes.length < 14 + 14) return null; // 14 RSI + 14 Stoch Period
 
     const rsiPeriod = 14;
     const rsiValues = [];
@@ -61,33 +74,24 @@ export function getStochRSI(index) {
 }
 
 // ✅ MACD Calculation
-export function getMACD(index, fast = 12, slow = 26, signal = 9) {
+export function getMACD(index) {
     const candles = dataObject.coins[index].candles;
     const closes = candles.map(c => parseFloat(c[4]));
-    if (closes.length < slow + signal) return null;
 
-    const ema = (arr, period) => {
-        const k = 2 / (period + 1);
-        let emaArray = [arr.slice(0, period).reduce((a, b) => a + b) / period];
-        for (let i = period; i < arr.length; i++) {
-            emaArray.push((arr[i] - emaArray[emaArray.length - 1]) * k + emaArray[emaArray.length - 1]);
-        }
-        return emaArray;
+    if (closes.length < 35) return null; // Enough data check
+
+    const macdInput = {
+        values: closes,
+        fastPeriod: 12,
+        slowPeriod: 26,
+        signalPeriod: 9,
+        SimpleMAOscillator: false,
+        SimpleMASignal: false
     };
 
-    const fastEma = ema(closes, fast);
-    const slowEma = ema(closes, slow);
-    const macdLine = fastEma.slice(slowEma.length * -1).map((v, i) => v - slowEma[i]);
-    const signalLine = ema(macdLine, signal);
-    const histogram = macdLine.slice(-1)[0] - signalLine.slice(-1)[0];
-
-    return {
-        macd: macdLine.slice(-1)[0],
-        signal: signalLine.slice(-1)[0],
-        histogram
-    };
+    const result = MACD.calculate(macdInput);
+    return result.at(-1); // Get last MACD object: { MACD, signal, histogram }
 }
-
 export function isVolumeSpike(index, length = 20, spikeMultiplier = 2) {
     const candles = dataObject.coins[index].candles;
     if (candles.length < length + 1) return false;
@@ -136,23 +140,48 @@ export function getCandlePattern(index) {
 
 
 export function isBullishReversalSignal(index) {
-    const volumeSpike = isVolumeSpike(index);
-    const pattern = getCandlePattern(index);
+    const candles = dataObject.coins[index].candles;
+    if (candles.length < 3) return false;
 
-    return volumeSpike && (
-        pattern?.isBullishEngulfing ||
-        pattern?.isPinBar // bullish pin bar (long lower wick)
-    );
+    const [prev, last] = candles.slice(-2).map(c => ({
+        open: parseFloat(c[1]),
+        close: parseFloat(c[4]),
+        high: parseFloat(c[2]),
+        low: parseFloat(c[3])
+    }));
+
+    const bodySize = Math.abs(last.close - last.open);
+    if (bodySize < (last.high - last.low) * 0.25) return false; // Avoid weak candles
+
+    // Simple Bullish Engulfing
+    return last.close > last.open &&
+        prev.close < prev.open &&
+        last.close > prev.open &&
+        last.open < prev.close;
 }
 
 export function isBearishReversalSignal(index) {
-    const volumeSpike = isVolumeSpike(index);
-    const pattern = getCandlePattern(index);
+    const candles = dataObject.coins[index].candles;
+    if (candles.length < 3) return false;
 
-    return volumeSpike && (
-        pattern?.isBearishEngulfing ||
-        pattern?.isPinBar // bearish pin bar (long upper wick)
-    );
+
+    const [prev, last] = candles.slice(-2).map(c => ({
+        open: parseFloat(c[1]),
+        close: parseFloat(c[4]),
+        high: parseFloat(c[2]),
+        low: parseFloat(c[3])
+    }));
+
+    const bodySize = Math.abs(last.close - last.open);
+    if (bodySize < (last.high - last.low) * 0.25) return false; // Avoid weak candles
+
+
+
+    // Simple Bearish Engulfing
+    return last.close < last.open &&
+        prev.close > prev.open &&
+        last.close < prev.open &&
+        last.open > prev.close;
 }
 
 
@@ -213,21 +242,51 @@ export function forSideWayOver(index) {
     const bullishReversal = isBullishReversalSignal(index); // ✅ fix here
     const bearishReversal = isBearishReversalSignal(index);
 
-    if (rsi !== null && stoch !== null && macd !== null) {
+    if (rsi === null || stoch === null || macd === null) {
+        return { overSold: false, overBought: false };
+    }else {
 
         return {
-            buy:
+            overSold:
                 rsi < dataObject.sideWayOversoldThreshold &&
                 stoch < dataObject.sideWayOversoldThreshold &&
-                 (macd.histogram > 0),
+                 (macd.histogram > 0) &&
                  bullishReversal,
 
-            sell:
+            overBought:
                 rsi >= dataObject.sideWayOverboughtThreshold &&
                 stoch > dataObject.sideWayOverboughtThreshold &&
-                 (macd.histogram < 0),
+                 (macd.histogram < 0) &&
                 bearishReversal,
 
         }
+    }
+}
+
+
+export function buySell(index) {
+    const macd = getMACD(index);
+
+
+    if (!macd || typeof macd.histogram !== 'number') {
+        return { buy: false, sell: false }; // Prevent undefined errors
+    }
+
+    const bullishReversal = isBullishReversalSignal(index);
+    const bearishReversal = isBearishReversalSignal(index);
+
+    return {
+        buy: macd.histogram > 0 && macd.MACD > macd.signal && bullishReversal,
+        sell: macd.histogram < 0 && macd.MACD < macd.signal && bearishReversal
+    };
+}
+
+
+export   function exitSignal(index){
+    const bullishReversal = isBullishReversalSignal(index);
+    const bearishReversal = isBearishReversalSignal(index);
+    return {
+        sellExit: bullishReversal,
+        buyExit: bearishReversal,
     }
 }

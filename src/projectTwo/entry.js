@@ -1,13 +1,13 @@
 import {dataObject, setObject} from "./dataObject.js";
 import {fetchHistoricalCandles} from "./data.js";
-import {initialize} from "./btcDenominator.js";
+// import {initialize} from "./btcDenominator.js";
 
 export function projectOneInit(){
 
 
     setObject().then(async (symbols) => {
 
-        initialize();
+        // initialize();
 
 
         dataObject.coins = symbols;
