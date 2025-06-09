@@ -56,8 +56,7 @@ const execute = async (index, side, quantity) => {
 
 function takeProfit(index, currentPrice) {
 
-    return;
-    const status = dataObject.coins[index];
+     const status = dataObject.coins[index];
 
     const now = Date.now();
     if (now - status.lastExitTime < status.coolDownTime) {
@@ -115,9 +114,9 @@ function startWebSocket(index) {
     dataObject.coins[index].ws.on('message',   msg => {
         const data = JSON.parse(msg);
 
-        // if (data && data.k && data.k.c) {
-        //     takeProfit(index, parseFloat(data.k.c))
-        // }
+        if (data && data.k && data.k.c) {
+            takeProfit(index, parseFloat(data.k.c))
+        }
 
         if (data.k.x) { // Candle closed
             const k = data.k;
