@@ -237,38 +237,35 @@ function detectAndLog(index) {
     }
 
 
-    // if(trend === 'uptrend' && signal.buy && !hasPosition){
-    //     console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-    //
-    //     // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
-    //
-    //     return execute(index, 'BUY', quantity).then(() => {
-    //         Object.assign(status, {
-    //             hasPosition: true,
-    //             side: 'BUY',
-    //             quantity:  quantity,
-    //             entryPrice: currentPrice
-    //         })
-    //     }).catch((err) => {console.log(err)});
-    // }
-    //
-    //
-    //
-    // if(trend === 'downtrend' && signal.sell && !hasPosition){
-    //     console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-    //
-    //     // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
-    //
-    //     return execute(index, 'SELL', quantity).then(() => {
-    //         Object.assign(status, {
-    //             hasPosition: true,
-    //             side: 'SELL',
-    //             quantity:  quantity,
-    //             entryPrice: currentPrice
-    //         })
-    //     }).catch((err) => {console.log(err)});
-    // }
+    if(trend === 'uptrend' && signal.buy && !hasPosition){
+        console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
 
+        // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
+
+        return execute(index, 'BUY', quantity).then(() => {
+            Object.assign(status, {
+                hasPosition: true,
+                side: 'BUY',
+                quantity:  quantity,
+                entryPrice: currentPrice
+            })
+        }).catch((err) => {console.log(err)});
+    }
+
+    if(trend === 'downtrend' && signal.sell && !hasPosition){
+        console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
+
+        // console.log(`Trend ${trend} | Buy: ${buy ? '✅ YES' : '❌ NO'} | Sell:  ${sell ? '✅ YES' : '❌ NO'}`);
+
+        return execute(index, 'SELL', quantity).then(() => {
+            Object.assign(status, {
+                hasPosition: true,
+                side: 'SELL',
+                quantity:  quantity,
+                entryPrice: currentPrice
+            })
+        }).catch((err) => {console.log(err)});
+    }
 
 
 }

@@ -204,11 +204,11 @@ export function isOverBought(index) {
 
     if (rsi !== null && stoch !== null && macd !== null && volumeSpike) {
         return (
-            rsi >= dataObject.overboughtThreshold &&
+            rsi > dataObject.overboughtThreshold &&
             stoch > dataObject.overboughtThreshold &&
             (macd.histogram > 0) &&
             !macd.weakening
-            // && bullishReversal
+            && bullishReversal
         );
     }
     return false;
@@ -228,7 +228,7 @@ export function isOverSold(index) {
             stoch < dataObject.oversoldThreshold &&
             (macd.histogram < 0) &&
             !macd.weakening
-            // && bearishReversal
+            && bearishReversal
         );
     }
     return false;
@@ -305,14 +305,14 @@ export function exitSignal(index) {
 
     return {
         sellExit:
-            bullishReversal &&                   // bearish position → exit when bullish reversal
+            bullishReversal &&                  // bearish position → exit when bullish reversal
             macd.histogram > 0 &&                // MACD turning positive
             macd.weakening &&                    // but weakening
             // rsi < 70 &&                          // previously overbought, now weakening
             volumeSpike,                         // spike may suggest distribution
 
         buyExit:
-            bearishReversal &&                   // bullish position → exit when bearish reversal
+            bearishReversal &&           // bullish position → exit when bearish reversal
             macd.histogram < 0 &&                // MACD turning negative
             macd.weakening &&                    // momentum weakening
             // rsi > 30 &&                          // previously oversold, now weakening
