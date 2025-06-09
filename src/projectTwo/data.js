@@ -183,7 +183,7 @@ function detectAndLog(index) {
     const signal = buySell(0);
     const exits = exitSignal(index);
 
-    console.log(status.symbol, ' ', trend, ' ', getRSI(index), 'over sold ',  overSold, 'over bought ', overBought, 'buy signal ', signal.buy, 'sell signal ', signal.sell)
+    // console.log(status.symbol, ' ', trend, ' ', getRSI(index), 'over sold ',  overSold, 'over bought ', overBought, 'buy signal ', signal.buy, 'sell signal ', signal.sell)
 
 
     if(trend === 'sideway' && overSold && !hasPosition){
