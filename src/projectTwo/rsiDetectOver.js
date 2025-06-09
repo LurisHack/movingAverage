@@ -308,14 +308,14 @@ export function exitSignal(index) {
             bullishReversal &&                   // bearish position → exit when bullish reversal
             macd.histogram > 0 &&                // MACD turning positive
             macd.weakening &&                    // but weakening
-            rsi < 70 &&                          // previously overbought, now weakening
+            // rsi < 70 &&                          // previously overbought, now weakening
             volumeSpike,                         // spike may suggest distribution
 
         buyExit:
             bearishReversal &&                   // bullish position → exit when bearish reversal
             macd.histogram < 0 &&                // MACD turning negative
             macd.weakening &&                    // momentum weakening
-            rsi > 30 &&                          // previously oversold, now weakening
+            // rsi > 30 &&                          // previously oversold, now weakening
             volumeSpike                          // spike may suggest selling pressure
     };
 }

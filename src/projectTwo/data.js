@@ -6,6 +6,7 @@ import {calculateQuantity} from "../projectOne/utility/utility.js";
 import {detectTrend} from "./detectedTrend.js";
 import {buySell, exitSignal, forSideWayOver, getRSI, isOverBought, isOverSold} from "./rsiDetectOver.js";
 import {calculateUnrealizedProfit} from "./utility/utility.js";
+import {calculateSupertrend} from "./utility/supertrend.js";
 // import {decisionEngineLive} from "./btcDenominator.js";
 
 
@@ -164,7 +165,7 @@ function detectAndLog(index) {
     if (now - status.lastDecisionTime < 5000) return; // skip if under 5 seconds
     status.lastDecisionTime = now;
 
-    // const closePrices = status.candles.map(m => parseFloat(m[4]))
+
 
     const trend = detectTrend(index);
     // console.log(trend)
@@ -186,33 +187,33 @@ function detectAndLog(index) {
     // console.log(status.symbol, ' ', trend, ' ', getRSI(index), 'over sold ',  overSold, 'over bought ', overBought, 'buy signal ', signal.buy, 'sell signal ', signal.sell)
 
 
-    if(trend === 'sideway' && overSold && !hasPosition){
-
-        console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-
-        return execute(index, 'BUY', quantity).then(() => {
-            Object.assign(status, {
-                hasPosition: true,
-                side: 'BUY',
-                quantity:  quantity,
-                entryPrice: currentPrice
-            })
-        }).catch((err) => {console.log(err)});
-    }
-
-    if(trend === 'sideway' && overBought && !hasPosition){
-        console.log(`2 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-
-
-        return execute(index, 'SELL', quantity).then(() => {
-            Object.assign(status, {
-                hasPosition: true,
-                side: 'SELL',
-                quantity:  quantity,
-                entryPrice: currentPrice
-            })
-        }).catch((err) => {console.log(err)});
-    }
+    // if(trend === 'sideway' && overSold && !hasPosition){
+    //
+    //     console.log(`1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
+    //
+    //     return execute(index, 'BUY', quantity).then(() => {
+    //         Object.assign(status, {
+    //             hasPosition: true,
+    //             side: 'BUY',
+    //             quantity:  quantity,
+    //             entryPrice: currentPrice
+    //         })
+    //     }).catch((err) => {console.log(err)});
+    // }
+    //
+    // if(trend === 'sideway' && overBought && !hasPosition){
+    //     console.log(`2 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
+    //
+    //
+    //     return execute(index, 'SELL', quantity).then(() => {
+    //         Object.assign(status, {
+    //             hasPosition: true,
+    //             side: 'SELL',
+    //             quantity:  quantity,
+    //             entryPrice: currentPrice
+    //         })
+    //     }).catch((err) => {console.log(err)});
+    // }
 
     if(hasPosition && status.side === 'BUY' && exits.buyExit){
         return execute(index, 'SELL', status.quantity).then(() => {
