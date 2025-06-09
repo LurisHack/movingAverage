@@ -185,34 +185,34 @@ function detectAndLog(index) {
 
     // console.log(status.symbol, ' ', trend, ' ', getRSI(index), 'over sold ',  overSold, 'over bought ', overBought, 'buy signal ', signal.buy, 'sell signal ', signal.sell)
 
-
-    if(trend === 'sideway' &&   signal.buy && !hasPosition){
-
-        console.log(`S1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-
-        return execute(index, 'BUY', quantity).then(() => {
-            Object.assign(status, {
-                hasPosition: true,
-                side: 'BUY',
-                quantity:  quantity,
-                entryPrice: currentPrice
-            })
-        }).catch((err) => {console.log(err)});
-    }
-
-    if(trend === 'sideway' && signal.sell && !hasPosition){
-        console.log(`S2 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
-
-
-        return execute(index, 'SELL', quantity).then(() => {
-            Object.assign(status, {
-                hasPosition: true,
-                side: 'SELL',
-                quantity:  quantity,
-                entryPrice: currentPrice
-            })
-        }).catch((err) => {console.log(err)});
-    }
+    //
+    // if(trend === 'sideway' &&   signal.buy && !hasPosition){
+    //
+    //     console.log(`S1 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
+    //
+    //     return execute(index, 'BUY', quantity).then(() => {
+    //         Object.assign(status, {
+    //             hasPosition: true,
+    //             side: 'BUY',
+    //             quantity:  quantity,
+    //             entryPrice: currentPrice
+    //         })
+    //     }).catch((err) => {console.log(err)});
+    // }
+    //
+    // if(trend === 'sideway' && signal.sell && !hasPosition){
+    //     console.log(`S2 [${dataObject.coins[index].symbol.toUpperCase()}] - Last Price: ${dataObject.coins[index].candles[dataObject.coins[index].candles.length - 1][4]}`);
+    //
+    //
+    //     return execute(index, 'SELL', quantity).then(() => {
+    //         Object.assign(status, {
+    //             hasPosition: true,
+    //             side: 'SELL',
+    //             quantity:  quantity,
+    //             entryPrice: currentPrice
+    //         })
+    //     }).catch((err) => {console.log(err)});
+    // }
 
     if(hasPosition && status.side === 'BUY' && exits.buyExit){
         return execute(index, 'SELL', status.quantity).then(() => {
