@@ -84,7 +84,7 @@ async function getTopLowCapSymbolsFromBinance(maxPrice = 1, limit = 50) {
 export async function setObject() {
 
 
-    let symbolAry = await getTopLowCapSymbolsFromBinance(5, 20);
+    let symbolAry = await getTopLowCapSymbolsFromBinance(5, 30);
     if (!symbolAry.length) {
         console.warn('⚠️ No valid trading symbols retrieved from Binance.');
         return [];
