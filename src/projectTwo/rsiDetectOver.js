@@ -286,8 +286,8 @@ export function buySell(index) {
     const bearishReversal = isBearishReversalSignal(index);
 
     return {
-        buy: macd.histogram > 0 && macd.MACD > macd.signal && bullishReversal && !macd.weakening,
-        sell: macd.histogram < 0 && macd.MACD < macd.signal && bearishReversal && !macd.weakening
+        buy: macd.histogram > 0 && (macd.MACD > macd.signal) && bullishReversal && !macd.weakening,
+        sell: macd.histogram < 0 && (macd.MACD < macd.signal) && bearishReversal && !macd.weakening
     };
 }
 

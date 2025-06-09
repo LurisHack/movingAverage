@@ -180,7 +180,7 @@ function detectAndLog(index) {
 
     const { overSold , overBought } = forSideWayOver(index);
 
-    const signal = buySell(0);
+    const signal = buySell(index);
     const exits = exitSignal(index);
 
     // console.log(status.symbol, ' ', trend, ' ', getRSI(index), 'over sold ',  overSold, 'over bought ', overBought, 'buy signal ', signal.buy, 'sell signal ', signal.sell)
