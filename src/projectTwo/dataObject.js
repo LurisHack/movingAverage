@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export let dataObject = {
-    interval: '5m',
+    interval: '1m',
     thresholdPercent: 1.5,
     limit: 100,// RSI calculation needs 14+ candles
     rsiPeriod: 14,
@@ -84,7 +84,7 @@ async function getTopLowCapSymbolsFromBinance(maxPrice = 1, limit = 50) {
 export async function setObject() {
 
 
-    let symbolAry = await getTopLowCapSymbolsFromBinance(5, 100);
+    let symbolAry = await getTopLowCapSymbolsFromBinance(5, 50);
     if (!symbolAry.length) {
         console.warn('⚠️ No valid trading symbols retrieved from Binance.');
         return [];
